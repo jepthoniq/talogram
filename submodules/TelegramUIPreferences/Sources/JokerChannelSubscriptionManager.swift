@@ -27,11 +27,7 @@ public class JokerChannelSubscriptionManager {
     
     // التحقق من الاشتراك عبر API (يحتاج ربط مع TDLib channels.getParticipant)
     public static func checkSubscriptionViaAPI(account: Account) -> Signal<Bool, NoError> {
-        return account.postbox.transaction { transaction -> Bool in
-            // هذا Platzhalter - يمكن ربطه لاحقاً مع API الفعلي
-            // للتحقق من مشاركة المستخدم في قناة @aljokeruserbot
-            return UserDefaults.standard.bool(forKey: subscriptionKey)
-        }
+        return Signal<Bool, NoError>.single(UserDefaults.standard.bool(forKey: subscriptionKey))
     }
     
     // عرض تنبيه يطلب من المستخدم الاشتراك في القناة

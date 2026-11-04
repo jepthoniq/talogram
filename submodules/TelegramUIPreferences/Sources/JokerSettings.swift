@@ -144,10 +144,7 @@ public func getJokerSettings(accountManager: AccountManager<TelegramAccountManag
 
 // دالة للتحقق من الاشتراك في قناة @aljokeruserbot
 public func checkJokerChannelSubscription(account: Account) -> Signal<Bool, NoError> {
-    return account.postbox.transaction { transaction -> Bool in
-        // التحقق من UserDefaults محلياً كبداية، يمكن ربطه بـ API لاحقاً
-        return UserDefaults.standard.bool(forKey: "joker_channel_subscribed")
-    }
+    return Signal<Bool, NoError>.single(UserDefaults.standard.bool(forKey: "joker_channel_subscribed"))
 }
 
 // دالة لحفظ حالة الاشتراك

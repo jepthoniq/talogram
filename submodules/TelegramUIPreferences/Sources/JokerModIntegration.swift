@@ -275,9 +275,7 @@ public class JokerChannelSubscriptionManager {
     }
     
     public static func checkSubscriptionViaAPI(account: Account) -> Signal<Bool, NoError> {
-        return account.postbox.transaction { transaction -> Bool in
-            return UserDefaults.standard.bool(forKey: subscriptionKey)
-        }
+        return Signal<Bool, NoError>.single(UserDefaults.standard.bool(forKey: subscriptionKey))
     }
 }
 
