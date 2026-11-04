@@ -2,59 +2,59 @@ name: Build Talogram IPA
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: talogram-ipa-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
+    if: github.ref == 'refs/heads/master'
     runs-on: macos-latest
-
+    timeout-minutes: 360
     steps:
-      - name: Checkout repository
+      - name: Check out repository and submodules
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          submodules: recursive
 
-      - name: Install Bazel
+      - name: Check build environment
         run: |
-          brew install bazelisk || true
-          which bazelisk || which bazel || echo "Bazel not found"
+          xcodebuild -version
+          python3 --version
+          git submodule status
 
-      - name: Set up environment
+      - name: Build IPA for iPASide signing
         run: |
-          export PATH="$PATH:/usr/local/bin:/opt/homebrew/bin"
-          bazelisk --version 2>/dev/null || bazel --version 2>/dev/null || echo "Bazel version check"
+          python3 build-system/Make/Make.py \
+            --overrideXcodeVersion \
+            --cacheDir "$HOME/telegram-bazel-cache" \
+            build \
+            --configurationPath build-system/appstore-configuration.json \
+            --codesigningInformationPath build-system/fake-codesigning \
+            --buildNumber "$GITHUB_RUN_NUMBER" \
+            --configuration release_arm64 \
+            --outputBuildArtifactsPath build/artifacts
 
-      - name: Build Telegram-iOS
+      - name: Verify IPA package
         run: |
-          cd Telegram/Telegram-iOS
-          bazelisk build //Telegram/Telegram-iOS:Telegram-iOS --config=release 2>/dev/null || \
-          bazel build //Telegram/Telegram-iOS:Telegram-iOS --config=release 2>/dev/null || \
-          echo "Bazel build attempted"
+          test -s build/artifacts/Telegram.ipa
+          unzip -t build/artifacts/Telegram.ipa
+          TEMP_DIR="$(mktemp -d)"
+          trap 'rm -rf "$TEMP_DIR"' EXIT
+          unzip -q build/artifacts/Telegram.ipa -d "$TEMP_DIR"
+          APP_PATH="$(find "$TEMP_DIR/Payload" -maxdepth 1 -name '*.app' -print -quit)"
+          test -n "$APP_PATH"
 
-      - name: Create IPA package
-        run: |
-          mkdir -p build/IPA
-          cp -r bazel-bin/Telegram/Telegram-iOS/Talogram.app build/IPA/ 2>/dev/null || \
-          cp -r bazel-bin/Telegram/Telegram-iOS/Telegram-iOS.app build/IPA/ 2>/dev/null || \
-          echo "App bundle location may vary"
-
-          mkdir -p build/IPA/Payload
-          cp -r build/IPA/*.app build/IPA/Payload/ 2>/dev/null || true
-          cd build/IPA
-          zip -r ../Talogram.ipa Payload/ 2>/dev/null || true
-
-      - name: Upload IPA artifact
+      - name: Upload IPA for iPASide
         uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: Talogram-IPA
-          path: |
-            build/IPA/*.ipa
-            build/*.ipa
+          name: Talogram-IPA-for-iPASide
+          path: build/artifacts/Telegram.ipa
+          if-no-files-found: error
           retention-days: 7
-
-      - name: Show build results
-        run: |
-          ls -la build/ 2>/dev/null || echo "No build output found"
-          ls -la *.ipa 2>/dev/null || echo "No IPA file found"
