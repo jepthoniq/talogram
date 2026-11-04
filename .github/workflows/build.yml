@@ -15,24 +15,33 @@ concurrency:
 jobs:
   build:
     if: github.ref == 'refs/heads/master'
-    runs-on: macos-latest
+    runs-on: xcode-27
     timeout-minutes: 360
     steps:
       - name: Check out repository and submodules
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
 
       - name: Check build environment
         run: |
           xcodebuild -version
+          EXPECTED_XCODE="$(python3 -c 'import json; print(json.load(open("versions.json"))["xcode"])')"
+          ACTUAL_XCODE="$(xcodebuild -version | awk 'NR == 1 {print $2}')"
+          if [ "$ACTUAL_XCODE" != "$EXPECTED_XCODE" ]; then
+            echo "::error::This project requires Xcode $EXPECTED_XCODE, but the runner has Xcode $ACTUAL_XCODE."
+            exit 1
+          fi
           python3 --version
           git submodule status
+          if git submodule status --recursive | grep -Eq '^[-+U]'; then
+            echo "::error::One or more pinned Git submodules were not checked out correctly."
+            exit 1
+          fi
 
       - name: Build IPA for iPASide signing
         run: |
           python3 build-system/Make/Make.py \
-            --overrideXcodeVersion \
             --cacheDir "$HOME/telegram-bazel-cache" \
             build \
             --configurationPath build-system/appstore-configuration.json \
