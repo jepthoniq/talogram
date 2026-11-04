@@ -39,13 +39,24 @@ jobs:
             exit 1
           fi
 
+      - name: Generate fresh verification provisioning profiles
+        run: |
+          python3 build-system/Make/Make.py \
+            generate-verification-profiles \
+            --configurationPath build-system/appstore-configuration.json \
+            --codesigningInformationPath build-system/fake-codesigning \
+            --destination build/verification-codesigning/profiles \
+            --extendExpiration
+          mkdir -p build/verification-codesigning/certs
+          cp build-system/fake-codesigning/certs/* build/verification-codesigning/certs/
+
       - name: Build IPA for iPASide signing
         run: |
           python3 build-system/Make/Make.py \
             --cacheDir "$HOME/telegram-bazel-cache" \
             build \
             --configurationPath build-system/appstore-configuration.json \
-            --codesigningInformationPath build-system/fake-codesigning \
+            --codesigningInformationPath build/verification-codesigning \
             --buildNumber "$GITHUB_RUN_NUMBER" \
             --configuration release_arm64 \
             --outputBuildArtifactsPath build/artifacts
