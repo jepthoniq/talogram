@@ -263,6 +263,8 @@ genrule(
         rm -rf "$$BUILD_DIR"
         mkdir -p "$$BUILD_DIR"
 
+        chmod +x "$$SOURCE_PATH/pkg-config" "$$SOURCE_PATH/gas-preprocessor.pl"
+
         VARIANT=release
 
         FFMPEG_VERSION="8.1.2"
