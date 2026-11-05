@@ -11,7 +11,6 @@ swift_library(
         # TelegramPresentationData). Depending on them from here would create a
         # dependency cycle, so they stay in the tree but outside the build.
         "Sources/JokerGhostMode.swift",
-        "Sources/JokerIntegration.swift",
         "Sources/JokerModIntegration.swift",
         "Sources/JokerAutoSaveMedia.swift",
         "Sources/JokerDeletedMessages.swift",
