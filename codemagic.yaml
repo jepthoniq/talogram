@@ -90,6 +90,10 @@ workflows:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME" || echo "warning: could not set key partition list"
           security list-keychains -d user -s "$KEYCHAIN_NAME" $(security list-keychains -d user | tr -d '"')
           security default-keychain -s "$KEYCHAIN_NAME"
+          CERTIFICATE="build/verification-codesigning/certs/Public.cer"
+          echo "Trusting the verification certificate in the system trust domain..."
+          sudo security add-trusted-cert -d -r trustRoot -p codeSign -k /Library/Keychains/System.keychain "$CERTIFICATE" || \
+            sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "$CERTIFICATE"
           IDENTITIES="$(security find-identity -v -p codesigning)"
           printf '%s\n' "$IDENTITIES"
           if ! printf '%s' "$IDENTITIES" | grep -q "Apple Distribution"; then
