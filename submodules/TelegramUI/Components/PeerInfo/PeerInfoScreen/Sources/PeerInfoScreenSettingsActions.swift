@@ -1,4 +1,4 @@
-import Foundation
+﻿import Foundation
 import UIKit
 import Display
 import AccountContext
@@ -315,7 +315,7 @@ extension PeerInfoScreenNode {
             }
             push(self.context.sharedContext.makeWalletScreen(context: self.context))
         case .jokerSettings:
-            push(JokerSettingsController(context: self.context))
+            push(jokerSettingsController(context: self.context))
         }
     }
 
@@ -383,3 +383,4 @@ extension PeerInfoScreenNode {
         }))
     }
 }
+
