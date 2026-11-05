@@ -180,6 +180,27 @@ private func legacyDocumentsPath() -> String {
     return NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0] + "/legacy"
 }
 
+/// Returns the shared application group container when the entitlement is available.
+/// Sideloaded builds signed with a personal certificate cannot use the app group, so
+/// fall back to the app's own Application Support directory instead of failing to launch.
+private func talogramSharedContainerURL(appGroupName: String) -> URL {
+    if let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupName) {
+        return url
+    }
+    
+    let fileManager = FileManager.default
+    let basePath = NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true).first ?? NSTemporaryDirectory()
+    var fallbackURL = URL(fileURLWithPath: basePath, isDirectory: true).appendingPathComponent("TalogramSharedContainer", isDirectory: true)
+    do {
+        try fileManager.createDirectory(at: fallbackURL, withIntermediateDirectories: true, attributes: nil)
+    } catch {
+        fallbackURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true).appendingPathComponent("TalogramSharedContainer", isDirectory: true)
+        try? fileManager.createDirectory(at: fallbackURL, withIntermediateDirectories: true, attributes: nil)
+    }
+    NSLog("[Talogram] Application group %@ is unavailable; using local container at %@", appGroupName, fallbackURL.path)
+    return fallbackURL
+}
+
 protocol SupportedStartCallIntent {
     @available(iOS 10.0, *)
     var contacts: [INPerson]? { get }
@@ -573,7 +594,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         try! PasscodeEnvironment.shared.configure(PasscodeConfiguration(appGroupIdentifier: appGroupName, processRole: .mainApp, biometricKeychainService: walletBiometricKeychainService), privateAccessGroup: {
             BuildConfig.keychainAccessGroup(baseAppBundleId: baseAppBundleId)
         })
-        let maybeAppGroupUrl = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupName)
+        let appGroupUrl = talogramSharedContainerURL(appGroupName: appGroupName)
         
         let buildConfig = BuildConfig(baseAppBundleId: baseAppBundleId)
         self.buildConfig = buildConfig
@@ -695,11 +716,6 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             // mtproto_engine_rust_disabled, the factory's own declines).
             networkEngineFactory: RustNetworkEngineFactory()
         )
-        
-        guard let appGroupUrl = maybeAppGroupUrl else {
-            self.mainWindow?.presentNative(UIAlertController(title: nil, message: "Error 2", preferredStyle: .alert))
-            return true
-        }
         
         var isDebugConfiguration = false
         #if DEBUG
