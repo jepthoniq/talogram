@@ -47,12 +47,13 @@ workflows:
               METAL_DMG="$(sudo find /System/Library/AssetsV2/com_apple_MobileAsset_MetalToolchain -path '*/AssetData/Restore/*.dmg' -print 2>/dev/null | head -n 1 || true)"
             fi
 
-            if [ -n "$METAL_DMG" ] && [ ! -d /Volumes/MetalToolchainCryptex ]; then
+            METAL_REAL=/Volumes/MetalToolchainCryptex/Metal.xctoolchain/usr/bin/metal
+            if [ ! -x "$METAL_REAL" ] && [ -n "$METAL_DMG" ]; then
               echo "Mounting Metal Toolchain DMG: $METAL_DMG"
-              sudo hdiutil attach "$METAL_DMG" -mountpoint /Volumes/MetalToolchainCryptex -nobrowse -quiet || true
+              sudo mkdir -p /Volumes/MetalToolchainCryptex
+              sudo hdiutil attach "$METAL_DMG" -mountpoint /Volumes/MetalToolchainCryptex -nobrowse -readonly || true
             fi
 
-            METAL_REAL=/Volumes/MetalToolchainCryptex/Metal.xctoolchain/usr/bin/metal
             if [ -x "$METAL_REAL" ] && ! xcrun metal --version >/dev/null 2>&1; then
               echo "Pointing xcrun metal at the real Metal compiler..."
               sudo ln -sf "$METAL_REAL" "$DEVELOPER_PATH/Toolchains/XcodeDefault.xctoolchain/usr/bin/metal" || true
