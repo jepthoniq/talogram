@@ -1,0 +1,64 @@
+workflows:
+  talogram-ipa:
+    name: Talogram IPA (unsigned)
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    environment:
+      xcode: 27.1
+    cache:
+      cache_paths:
+        - $HOME/telegram-bazel-cache
+    scripts:
+      - name: Check out submodules
+        script: |
+          git submodule update --init --recursive
+          if git submodule status --recursive | grep -Eq '^[-+U]'; then
+            echo "One or more pinned Git submodules were not checked out correctly."
+            exit 1
+          fi
+
+      - name: Check build environment
+        script: |
+          xcodebuild -version
+          EXPECTED_XCODE="$(python3 -c 'import json; print(json.load(open("versions.json"))["xcode"])')"
+          ACTUAL_XCODE="$(xcodebuild -version | awk 'NR == 1 {print $2}')"
+          if [ "$ACTUAL_XCODE" != "$EXPECTED_XCODE" ]; then
+            echo "This project requires Xcode $EXPECTED_XCODE, but the machine has Xcode $ACTUAL_XCODE."
+            exit 1
+          fi
+          python3 --version
+
+      - name: Generate fresh verification provisioning profiles
+        script: |
+          python3 build-system/Make/Make.py \
+            generate-verification-profiles \
+            --configurationPath build-system/appstore-configuration.json \
+            --codesigningInformationPath build-system/fake-codesigning \
+            --destination build/verification-codesigning/profiles \
+            --extendExpiration
+          mkdir -p build/verification-codesigning/certs
+          cp build-system/fake-codesigning/certs/* build/verification-codesigning/certs/
+
+      - name: Build IPA for iPASide signing
+        script: |
+          python3 build-system/Make/Make.py \
+            --cacheDir "$HOME/telegram-bazel-cache" \
+            build \
+            --configurationPath build-system/appstore-configuration.json \
+            --codesigningInformationPath build/verification-codesigning \
+            --buildNumber "$BUILD_NUMBER" \
+            --configuration release_arm64 \
+            --outputBuildArtifactsPath build/artifacts
+
+      - name: Verify IPA package
+        script: |
+          test -s build/artifacts/Telegram.ipa
+          unzip -t build/artifacts/Telegram.ipa
+          TEMP_DIR="$(mktemp -d)"
+          trap 'rm -rf "$TEMP_DIR"' EXIT
+          unzip -q build/artifacts/Telegram.ipa -d "$TEMP_DIR"
+          APP_PATH="$(find "$TEMP_DIR/Payload" -maxdepth 1 -name '*.app' -print -quit)"
+          test -n "$APP_PATH"
+
+    artifacts:
+      - build/artifacts/Telegram.ipa
