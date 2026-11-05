@@ -1,6 +1,7 @@
 import Foundation
 import UIKit
 import TelegramCore
+import Postbox
 import SwiftSignalKit
 import AsyncDisplayKit
 import TelegramUIPreferences
@@ -9,9 +10,8 @@ import TelegramPresentationData
 
 // MARK: - Joker Integration Manager
 // هذا الملف يربط مميزات الجوكر مع الكود الأصلي للتليجرام
-// تم نقله إلى وحدة ChatMessageBubbleItemNode لأن اعتماداته (AccountContext /
-// TelegramUIPreferences / AsyncDisplayKit) متوفرة هناك، بينما لا يمكن ل
-// وحدة TelegramUIPreferences الاعتماد عليهما بسبب دورة الاعتماد.
+// تم نقله إلى وحدة ChatMessageBubbleItemNode لأن اعتماداته (Postbox /
+// TelegramUIPreferences / AccountContext / AsyncDisplayKit) متوفرة هناك.
 
 public class JokerIntegrationManager {
 
@@ -104,14 +104,15 @@ public class JokerIntegrationManager {
     }
 
     // MARK: - helper
+    // قراءة متزامنة للإعدادات من قيم UserDefaults المُرآة (تكتَبها
+    // updateJokerSettingsInteractively) عبر واجهة JokerSettings العامة.
     private static func getJokerSettingsFromCache() -> JokerSettings {
-        return JokerSettings(
-            autoSaveSelfDestructingMedia: UserDefaults.standard.bool(forKey: "joker_auto_save_media"),
-            allow100Accounts: UserDefaults.standard.bool(forKey: "joker_allow_100_accounts"),
-            ghostMode: UserDefaults.standard.bool(forKey: "joker_ghost_mode"),
-            forcePremiumTranslation: UserDefaults.standard.bool(forKey: "joker_force_premium_translation"),
-            keepDeletedMessages: UserDefaults.standard.bool(forKey: "joker_keep_deleted_messages"),
-            requireChannelSubscription: UserDefaults.standard.bool(forKey: "joker_require_subscription")
-        )
+        return JokerSettings.defaultSettings
+            .withUpdatedAutoSaveSelfDestructingMedia(UserDefaults.standard.bool(forKey: "joker_auto_save_media"))
+            .withUpdatedAllow100Accounts(UserDefaults.standard.bool(forKey: "joker_allow_100_accounts"))
+            .withUpdatedGhostMode(UserDefaults.standard.bool(forKey: "joker_ghost_mode"))
+            .withUpdatedForcePremiumTranslation(UserDefaults.standard.bool(forKey: "joker_force_premium_translation"))
+            .withUpdatedKeepDeletedMessages(UserDefaults.standard.bool(forKey: "joker_keep_deleted_messages"))
+            .withUpdatedRequireChannelSubscription(UserDefaults.standard.bool(forKey: "joker_require_subscription"))
     }
 }
