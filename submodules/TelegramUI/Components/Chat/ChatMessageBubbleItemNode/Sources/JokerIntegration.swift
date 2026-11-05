@@ -1,7 +1,6 @@
 import Foundation
 import UIKit
 import TelegramCore
-import Postbox
 import SwiftSignalKit
 import AsyncDisplayKit
 import TelegramUIPreferences
@@ -10,14 +9,15 @@ import TelegramPresentationData
 
 // MARK: - Joker Integration Manager
 // هذا الملف يربط مميزات الجوكر مع الكود الأصلي للتليجرام
-// تم نقله إلى وحدة ChatMessageBubbleItemNode لأن اعتماداته (Postbox /
-// TelegramUIPreferences / AccountContext / AsyncDisplayKit) متوفرة هناك.
+// تم نقله إلى وحدة ChatMessageBubbleItemNode لأن اعتماداته متوفرة هناك.
+// ملاحظة: لا يُستورد Postbox هنا (بوابة PostboxImportCheck)، وأنواع الوسائط
+// تُمرَّر عبر واجهات TelegramEngine عند التفعيل الفعلي لاحقاً.
 
 public class JokerIntegrationManager {
 
     // MARK: - ميزة 1: حفظ الوسائط ذاتية التدمير تلقائياً
     // استدع هذه الدالة عند فتح أي وسائط ذاتية التدمير في العارض
-    public static func onMediaOpened(context: AccountContext, media: Media, messageId: EngineMessage.Id?) {
+    public static func onMediaOpened(context: AccountContext, messageId: EngineMessage.Id?) {
         let jokerSettings = getJokerSettingsFromCache()
 
         guard jokerSettings.autoSaveSelfDestructingMedia else { return }
@@ -28,11 +28,12 @@ public class JokerIntegrationManager {
         }
 
         // حفظ الوسيط في الرسائل المحفوظة
-        saveMediaToSavedMessages(context: context, media: media, messageId: messageId)
+        saveMediaToSavedMessages(context: context, messageId: messageId)
     }
 
-    private static func saveMediaToSavedMessages(context: AccountContext, media: Media, messageId: EngineMessage.Id?) {
-        // هذا Platzhalter - يحتاج ربط مع API.forwardMessages
+    private static func saveMediaToSavedMessages(context: AccountContext, messageId: EngineMessage.Id?) {
+        // هذا Platzhalter - يحتاج ربط مع API.forwardMessages عبر TelegramEngine
+        // مع التحقق من الوسائط ذاتية التدمير (محتوى الرسالة نفسه).
         print("Joker: جاري حفظ الوسيط في الرسائل المحفوظة...")
     }
 
