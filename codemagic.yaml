@@ -28,6 +28,21 @@ workflows:
           fi
           python3 --version
 
+      - name: Install Metal Toolchain
+        script: |
+          DEVELOPER_PATH="$(xcode-select -p)"
+          echo "Using Xcode: $DEVELOPER_PATH"
+          if xcrun metal --version >/dev/null 2>&1; then
+            echo "Metal Toolchain is already available."
+          else
+            echo "Downloading Metal Toolchain (about 750 MB)..."
+            if ! env DEVELOPER_DIR="$DEVELOPER_PATH" "$DEVELOPER_PATH/usr/bin/xcodebuild" -downloadComponent MetalToolchain; then
+              echo "Retrying Metal Toolchain installation with sudo..."
+              sudo env DEVELOPER_DIR="$DEVELOPER_PATH" "$DEVELOPER_PATH/usr/bin/xcodebuild" -downloadComponent MetalToolchain
+            fi
+          fi
+          xcrun metal --version
+
       - name: Generate fresh verification provisioning profiles
         script: |
           python3 build-system/Make/Make.py \
