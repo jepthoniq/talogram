@@ -28,20 +28,40 @@ workflows:
           fi
           python3 --version
 
-      - name: Install Metal Toolchain
+      - name: Install and mount Metal Toolchain
         script: |
+          set -e
           DEVELOPER_PATH="$(xcode-select -p)"
           echo "Using Xcode: $DEVELOPER_PATH"
+
           if xcrun metal --version >/dev/null 2>&1; then
             echo "Metal Toolchain is already available."
           else
-            echo "Downloading Metal Toolchain (about 750 MB)..."
-            if ! env DEVELOPER_DIR="$DEVELOPER_PATH" "$DEVELOPER_PATH/usr/bin/xcodebuild" -downloadComponent MetalToolchain; then
-              echo "Retrying Metal Toolchain installation with sudo..."
-              sudo env DEVELOPER_DIR="$DEVELOPER_PATH" "$DEVELOPER_PATH/usr/bin/xcodebuild" -downloadComponent MetalToolchain
+            METAL_DMG="$(sudo find /System/Library/AssetsV2/com_apple_MobileAsset_MetalToolchain -path '*/AssetData/Restore/*.dmg' -print 2>/dev/null | head -n 1 || true)"
+            if [ -z "$METAL_DMG" ]; then
+              echo "Downloading Metal Toolchain (about 840 MB)..."
+              if ! env DEVELOPER_DIR="$DEVELOPER_PATH" "$DEVELOPER_PATH/usr/bin/xcodebuild" -downloadComponent MetalToolchain; then
+                echo "Retrying Metal Toolchain download with sudo..."
+                sudo env DEVELOPER_DIR="$DEVELOPER_PATH" "$DEVELOPER_PATH/usr/bin/xcodebuild" -downloadComponent MetalToolchain
+              fi
+              METAL_DMG="$(sudo find /System/Library/AssetsV2/com_apple_MobileAsset_MetalToolchain -path '*/AssetData/Restore/*.dmg' -print 2>/dev/null | head -n 1 || true)"
+            fi
+
+            if [ -n "$METAL_DMG" ] && [ ! -d /Volumes/MetalToolchainCryptex ]; then
+              echo "Mounting Metal Toolchain DMG: $METAL_DMG"
+              sudo hdiutil attach "$METAL_DMG" -mountpoint /Volumes/MetalToolchainCryptex -nobrowse -quiet || true
+            fi
+
+            METAL_REAL=/Volumes/MetalToolchainCryptex/Metal.xctoolchain/usr/bin/metal
+            if [ -x "$METAL_REAL" ] && ! xcrun metal --version >/dev/null 2>&1; then
+              echo "Pointing xcrun metal at the real Metal compiler..."
+              sudo ln -sf "$METAL_REAL" "$DEVELOPER_PATH/Toolchains/XcodeDefault.xctoolchain/usr/bin/metal" || true
             fi
           fi
-          xcrun metal --version
+
+          env DEVELOPER_DIR="$DEVELOPER_PATH" xcodebuild -showComponent MetalToolchain || true
+          env DEVELOPER_DIR="$DEVELOPER_PATH" xcrun metal --version
+          env DEVELOPER_DIR="$DEVELOPER_PATH" xcrun -f metallib
 
       - name: Generate fresh verification provisioning profiles
         script: |
