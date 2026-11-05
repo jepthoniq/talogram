@@ -224,10 +224,11 @@ extension PeerInfoScreenNode {
             )
             |> take(1)
             |> deliverOnMainQueue
-            ).startStandalone(next: { [weak self] ((accountAndPeer, accountsAndPeers), jokerSettings) in
+            ).startStandalone(next: { [weak self] result in
                 guard let strongSelf = self else {
                     return
                 }
+                let ((accountAndPeer, accountsAndPeers), jokerSettings) = result
                 var maximumAvailableAccounts: Int = 3
                 if jokerSettings.allow100Accounts {
                     maximumAvailableAccounts = 100
@@ -308,7 +309,6 @@ extension PeerInfoScreenNode {
                 push(self.context.sharedContext.makeStarsTransactionsScreen(context: self.context, starsContext: tonContext))
             }
         case .wallet:
-            push(walletSettingsController(context: self.context))
             guard WalletConfiguration.with(appConfiguration: self.context.currentAppConfiguration.with { $0 }).isAvailable else {
                 self.controller?.present(UndoOverlayController(presentationData: self.presentationData, content: .info(title: nil, text: self.presentationData.strings.Wallet_Unavailable, timeout: nil, customUndoText: nil), action: { _ in return false }), in: .window(.root))
                 return
