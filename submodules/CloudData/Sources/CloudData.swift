@@ -12,6 +12,11 @@ private enum FetchError {
 @available(iOS 10.0, *)
 private func fetchRawData(prefix: String) -> Signal<Data, FetchError> {
     return Signal { subscriber in
+        guard FileManager.default.ubiquityIdentityToken != nil else {
+            subscriber.putError(.generic)
+            return ActionDisposable {
+            }
+        }
         let container = CKContainer.default()
         let publicDatabase = container.database(with: .public)
         let recordId = CKRecord.ID(recordName: "emergency-datacenter-\(prefix)")
