@@ -103,6 +103,10 @@ private enum JokerSettingsControllerEntry: ItemListNodeEntry {
         }
     }
     
+    static func <(lhs: JokerSettingsControllerEntry, rhs: JokerSettingsControllerEntry) -> Bool {
+        return lhs.stableId < rhs.stableId
+    }
+    
     func item(presentationData: ItemListPresentationData, arguments: Any) -> ListViewItem {
         let arguments = arguments as! JokerSettingsControllerArguments
         switch self {
