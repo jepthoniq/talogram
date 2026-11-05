@@ -269,6 +269,12 @@ genrule(
 
         FFMPEG_VERSION="8.1.2"
 
+        # Restores executable bits on FFmpeg's build-aux scripts (ffbuild/version.sh,
+        # ffbuild/libversion.sh, ...). The vendored sources were committed from Windows,
+        # which drops the +x bit, so `make` fails on libavutil/ffversion.h with
+        # "Permission denied" (Error 126).
+        chmod +x "$SOURCE_PATH/ffmpeg-$FFMPEG_VERSION/configure" "$SOURCE_PATH/ffmpeg-$FFMPEG_VERSION/ffbuild/"*.sh
+
         if [ "$(TARGET_CPU)" == "ios_arm64" ]; then
             BUILD_ARCH="arm64"
         elif [ "$(TARGET_CPU)" == "ios_sim_arm64" ]; then
