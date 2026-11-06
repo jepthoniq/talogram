@@ -226,6 +226,9 @@ public final class ChatTitleView: UIView, NavigationBarTitleView {
     
     private var pointerInteraction: PointerInteraction?
     
+    // Joker Mod - ghost mode eye button in chat title (next to peer name)
+    private var jokerEyeTapGesture: UITapGestureRecognizer?
+    
     public var inputActivities: ChatTitleComponent.Activities? {
         didSet {
             let _ = self.updateStatus()
@@ -475,6 +478,38 @@ public final class ChatTitleView: UIView, NavigationBarTitleView {
                 }
                 self.isUserInteractionEnabled = isEnabled
                 self.button.isUserInteractionEnabled = isEnabled
+                
+                // Joker Mod - ghost mode eye button in chat title (next to peer name)
+                if case let .peer(peerView, _, _, _, _, _, _, _, _) = titleContent {
+                    if JokerIntegrationManager.isGhostModeEnabled(), peerView.peerId != self.context.account.peerId {
+                        if self.titleRightIconNode.image?.accessibilityIdentifier != "JokerEye" {
+                            self.titleRightIconNode.image = UIImage(systemName: "eye")?.withRenderingMode(.alwaysTemplate)
+                            self.titleRightIconNode.image?.accessibilityIdentifier = "JokerEye"
+                            self.titleRightIconNode.tintColor = self.theme.rootController.navigationBar.accentTextColor
+                        }
+                        if self.jokerEyeTapGesture == nil {
+                            let tap = UITapGestureRecognizer(target: self, action: #selector(self.jokerEyeTapped))
+                            self.titleRightIconNode.view.addGestureRecognizer(tap)
+                            self.jokerEyeTapGesture = tap
+                        }
+                    } else {
+                        if let tap = self.jokerEyeTapGesture {
+                            self.titleRightIconNode.view.removeGestureRecognizer(tap)
+                            self.jokerEyeTapGesture = nil
+                        }
+                        if self.titleRightIconNode.image?.accessibilityIdentifier == "JokerEye" {
+                            self.titleRightIconNode.image = nil
+                        }
+                    }
+                } else {
+                    if let tap = self.jokerEyeTapGesture {
+                        self.titleRightIconNode.view.removeGestureRecognizer(tap)
+                        self.jokerEyeTapGesture = nil
+                    }
+                    if self.titleRightIconNode.image?.accessibilityIdentifier == "JokerEye" {
+                        self.titleRightIconNode.image = nil
+                    }
+                }
                 
                 var enableAnimation = false
                 switch titleContent {
@@ -869,6 +904,13 @@ public final class ChatTitleView: UIView, NavigationBarTitleView {
         }
     }
     
+    @objc private func jokerEyeTapped() {
+        // Joker Mod - ghost mode: read all messages in this chat when eye is tapped in title
+        guard case let .peer(peerView, _, _, _, _, _, _, _, _) = self.titleContent else { return }
+        let dummyId = MessageId(peerId: peerView.peerId, namespace: 0, id: 0)
+        JokerIntegrationManager.markMessageAsRead(context: self.context, messageId: dummyId)
+    }
+
     public func updateLayout(availableSize: CGSize, transition: ContainedViewLayoutTransition) -> CGSize {
         let size = availableSize
         
