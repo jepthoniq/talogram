@@ -276,7 +276,7 @@ public final class AuthorizationSequenceController: NavigationController, ASAuth
                                             AuthorizationSequenceController.presentEmailComposeController(sharedContext: strongSelf.sharedContext, address: "recover@telegram.org", subject: strongSelf.presentationData.strings.Login_PhoneBannedEmailSubject(formattedNumber).string, body: strongSelf.presentationData.strings.Login_PhoneBannedEmailBody(formattedNumber, appVersion, systemVersion, locale, mnc).string, from: controller, presentationData: strongSelf.presentationData)
                                         }))
                                     case let .generic(info) where info.1.contains("RECAPTCHA"):
-                                        text = "التحقق من النظام (reCAPTCHA) مطلوب قبل إرسال الكود. هذه الميزة غير متوفرة في هذه النسخة التجريبية. يرجى استخدام تطبيق تليجرام الرسمي أو المحاولة لاحقًا."
+                                        text = "reCAPTCHA verification is required before sending the code. This feature is not available in this trial version. Please use the official Telegram app or try again later."
                                         actions.append(TextAlertAction(type: .defaultAction, title: strongSelf.presentationData.strings.Common_OK, action: {}))
                                     case let .generic(info):
                                         text = strongSelf.presentationData.strings.Login_UnknownError
