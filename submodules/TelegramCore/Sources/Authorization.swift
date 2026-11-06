@@ -232,7 +232,7 @@ public func sendAuthorizationCode(accountManager: AccountManager<TelegramAccount
                 case Regex("RECAPTCHA_CHECK_"):
                     // Talogram: server requires reCAPTCHA verification (like Nicegram-Android).
                     // Return a specific error so the UI can show a clear message.
-                    return .fail(.generic(info: (403, "RECAPTCHA_CHECK")))
+                    return .fail(error)
                 case _:
                     return .fail(error)
             }
