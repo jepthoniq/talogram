@@ -5759,34 +5759,6 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
         // frame CHANGED, and a tear can move while the bubble does not.
         strongSelf.updateBackgroundTear(unsupportedZones, backgroundFrame: backgroundFrame, animation: animation)
 
-        // Joker Mod - ghost mode eye button visibility and framing (incoming messages only)
-        if let ghostModeEyeButton = strongSelf.ghostModeEyeButton {
-            let eyeVisible = incoming && JokerIntegrationManager.isGhostModeEnabled()
-            if eyeVisible {
-                let msgIndex = item.message.index
-                ghostModeEyeButton.set(messageId: EngineMessage.Id(peerId: msgIndex.peerId, namespace: msgIndex.namespace, id: msgIndex.id))
-            }
-            let eyeSize = CGSize(width: 30.0, height: 30.0)
-            let eyeFrame = CGRect(
-                origin: CGPoint(x: backgroundFrame.maxX - eyeSize.width - 4.0, y: backgroundFrame.minY + 4.0),
-                size: eyeSize
-            )
-            ghostModeEyeButton.setEyeVisible(eyeVisible, frame: eyeFrame)
-        }
-
-        // Joker Mod - deleted message mark visibility and framing (keep-deleted messages)
-        if let deletedMessageMark = strongSelf.deletedMessageMark {
-            let messageId = item.message.index.id
-            let isKeptDeleted = JokerIntegrationManager.isKeepDeletedMessagesEnabled()
-                && JokerCoreHooks.isKeptDeletedMessage(peerId: messageId.peerId, namespace: messageId.namespace, id: messageId.id)
-            let markSize = CGSize(width: 20.0, height: 20.0)
-            let markFrame = CGRect(
-                origin: CGPoint(x: backgroundFrame.maxX - markSize.width - 4.0, y: backgroundFrame.maxY - markSize.height - 4.0),
-                size: markSize
-            )
-            deletedMessageMark.setDeletedMarkVisible(isKeptDeleted, frame: markFrame)
-        }
-
         let previousContextContentFrame = strongSelf.mainContextSourceNode.contentRect
         strongSelf.mainContextSourceNode.contentRect = backgroundFrame.offsetBy(dx: incomingOffset, dy: 0.0)
         strongSelf.mainContainerNode.targetNodeForActivationProgressContentRect = strongSelf.mainContextSourceNode.contentRect
