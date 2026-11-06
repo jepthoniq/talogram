@@ -6363,7 +6363,7 @@ func replayFinalState(
 
             if let update = latestUpdate {
                 // A draft whose random_id differs from the current one is a *replacement*,
-                // not an edit â€” random_ids are opaque, so there is no ordering to defend.
+                // not an edit — random_ids are opaque, so there is no ordering to defend.
                 // (This previously began `if let current, current.id > update.id { return current }`,
                 // which silently dropped a legitimately newer draft that happened to sort lower.)
                 let isSameDraft = current?.id == update.id
