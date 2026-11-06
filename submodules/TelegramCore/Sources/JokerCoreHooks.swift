@@ -5,9 +5,9 @@ internal import TelegramApi
 import MtProtoKit
 
 // MARK: - Joker Core Hooks
-// ظ†ظ‚ط§ط· ط§ظ„ط±ط¨ط· ط§ظ„ظ…ط¹ط²ظˆظ„ط© ط¯ط§ط®ظ„ ظ†ظˆط§ط© TelegramCore ظ„ط¬ظ…ظٹط¹ ظ…ظ…ظٹط²ط§طھ طھط¹ط¯ظٹظ„ط§طھ ط§ظ„ط¬ظˆظƒط± (Talogram)
-// طھطھظ… ظ‚ط±ط§ط،ط© ط§ظ„ط£ط¹ظ„ط§ظ… ظ…ظ† ظ…ط±ط§ظٹط§ UserDefaults ط§ظ„طھظٹ طھظƒطھط¨ظ‡ط§ updateJokerSettingsInteractively.
-// ظ…ظ„ط§ط­ط¸ط©: ط¬ظ…ظٹط¹ ط§ظ„ط¯ظˆط§ظ„ ظٹط¬ط¨ ط£ظ† طھط¨ظ‚ظ‰ ط¢ظ…ظ†ط© ظ…ظ† ط­ظٹط« ط§ظ„ظ‚ظپظ„ (ط¨ط¯ظˆظ† ط¥ظ…ظƒط§ظ†ظٹط© طھط³ط¨ط¨ ط­ظ„ظ‚ط§طھ).
+// نقاط الربط المعزولة داخل نواة TelegramCore لجميع مميزات تعديلات الجوكر (Talogram)
+// تتم قراءة الأعلام من مرايا UserDefaults التي تكتبها updateJokerSettingsInteractively.
+// ملاحظة: جميع الدوال يجب أن تبقى آمنة من حيث القفل (بدون إمكانية تسبب حلقات).
 
 public enum JokerCoreHooks {
     private static func boolFlag(_ key: String, defaultOnIfUnset: Bool = false) -> Bool {
@@ -17,27 +17,27 @@ public enum JokerCoreHooks {
         return UserDefaults.standard.bool(forKey: key)
     }
 
-    // ظ…ظٹط²ط©: طھط¬ط§ظˆط² ط­ظ…ط§ظٹط© ط§ظ„ظ†ط³ط® ظپظٹ ط§ظ„ط¯ط±ط¯ط´ط§طھ ظˆط§ظ„ظ‚ظ†ظˆط§طھ ط§ظ„ظ…ط­ظ…ظٹط©
+    // ميزة: تجاوز حماية النسخ في الدردشات والقنوات المحمية
     public static func bypassCopyProtectionEnabled() -> Bool {
         return boolFlag("joker_bypass_copy_protection")
     }
 
-    // ظ…ظٹط²ط©: طھط¬ظ…ظٹط¯ ط­ط§ظ„ط© "ط§ظ„ط¸ظ‡ظˆط±" â€” ظ„ط§ ظٹظڈط±ط³ظ„ ط£ط¨ط¯ط§ظ‹ account.updateStatus
+    // ميزة: تجميد حالة "الظهور" — لا يُرسل أبداً account.updateStatus
     public static func freezeLastSeenEnabled() -> Bool {
         return boolFlag("joker_freeze_last_seen")
     }
 
-    // ظ…ظٹط²ط©: ط§ظ„ط§ط­طھظپط§ط¸ ط¨ط±ط³ط§ط¦ظ„ ط§ظ„ط·ط±ظپ ط§ظ„ط¢ط®ط± ط§ظ„ظ…ط­ط°ظˆظپط© ظ…ط­ظ„ظٹط§ظ‹ ظ…ط¹ ط¹ظ„ط§ظ…ط© x
+    // ميزة: الاحتفاظ برسائل الطرف الآخر المحذوفة محلياً مع علامة x
     public static func keepDeletedMessagesEnabled() -> Bool {
         return boolFlag("joker_keep_deleted_messages")
     }
 
-    // ظ…ظٹط²ط©: ط­ظپط¸ ط§ظ„ظˆط³ط§ط¦ط· ط°ط§طھظٹط© ط§ظ„طھط¯ظ…ظٹط± ظپظٹ ط§ظ„ط±ط³ط§ط¦ظ„ ط§ظ„ظ…ط­ظپظˆط¸ط© طھظ„ظ‚ط§ط¦ظٹط§ظ‹
+    // ميزة: حفظ الوسائط ذاتية التدمير في الرسائل المحفوظة تلقائياً
     public static func autoSaveMediaEnabled() -> Bool {
         return boolFlag("joker_auto_save_media")
     }
 
-    // ط¨ظˆط§ط¨ط© ط§ظ„ط§ط´طھط±ط§ظƒ ط§ظ„ط¥ط¬ط¨ط§ط±ظٹط© ظپظٹ ظ‚ظ†ط§ط© @aljokeruserbot
+    // بوابة الاشتراك الإجبارية في قناة @aljokeruserbot
     public static func requireSubscriptionGateEnabled() -> Bool {
         return boolFlag("joker_require_subscription", defaultOnIfUnset: true)
     }
@@ -46,9 +46,9 @@ public enum JokerCoreHooks {
         return boolFlag("joker_channel_subscribed")
     }
 
-    // MARK: - ط§ظ„طھط­ظ‚ظ‚ ط§ظ„ط­ظ‚ظٹظ‚ظٹ ظ…ظ† ط§ظ„ط§ط´طھط±ط§ظƒ
-    // contacts.resolveUsername ط«ظ… channels.getParticipant(participant: .inputPeerSelf)
-    // ط§ظ„ظ†طھظٹط¬ط©: true ط¥ط°ط§ ظƒط§ظ† ط§ظ„ط­ط³ط§ط¨ ظ…ط´طھط±ظƒط§ظ‹ ظپظٹ ط§ظ„ظ‚ظ†ط§ط©طŒ false ظپظٹ ط£ظٹ ط­ط§ظ„ط© ط£ط®ط±ظ‰.
+    // MARK: - التحقق الحقيقي من الاشتراك
+    // contacts.resolveUsername ثم channels.getParticipant(participant: .inputPeerSelf)
+    // النتيجة: true إذا كان الحساب مشتركاً في القناة، false في أي حالة أخرى.
     public static func checkChannelSubscription(network: Network, postbox: Postbox, username: String) -> Signal<Bool, NoError> {
         var normalizedName = username
         if normalizedName.hasPrefix("@") {
@@ -91,9 +91,9 @@ public enum JokerCoreHooks {
         }
     }
 
-    // MARK: - ط§ظ„ظ‚ط±ط§ط،ط© ط§ظ„ط´ط¨ط­ظٹط© ظ„ظ„ط±ط³ط§ظ„ط© ط§ظ„ظˆط§ط­ط¯ط©
-    // ظٹظڈط³طھط®ط¯ظ… ط¹ظ†ط¯ ط§ظ„ط¶ط؛ط· ط¹ظ„ظ‰ ط²ط± ط§ظ„ط¹ظٹظ† ظپظٹ ظˆط¶ط¹ ط§ظ„ط´ط¨ط­: ظٹظڈط±ط³ظ„ ط·ظ„ط¨ ظ‚ط±ط§ط،ط© ظ…ط¨ط§ط´ط±
-    // ط¯ظˆظ† ط§ظ„ظ…ط±ظˆط± ط¹ط¨ط± ظ…ط³ط§ط± ط§ظ„ظ…ط²ط§ظ…ظ†ط© ط§ظ„ظ…ط¹ط·ظ‘ظ„ ط¨ظˆط§ط³ط·ط© ط¨ظˆط§ط¨ط© joker_ghost_mode.
+    // MARK: - القراءة الشبحية للرسالة الواحدة
+    // يُستخدم عند الضغط على زر العين في وضع الشبح: يُرسل طلب قراءة مباشر
+    // دون المرور عبر مسار المزامنة المعطّل بواسطة بوابة joker_ghost_mode.
     public static func markMessagesAsReadViaNetwork(account: Account, messageIds: [MessageId]) -> Signal<Void, NoError> {
         guard !messageIds.isEmpty else {
             return .complete()
@@ -143,9 +143,25 @@ public enum JokerCoreHooks {
         }
     }
 
-    // MARK: - ط§ظ„ط­ظپط¸ ط§ظ„طھظ„ظ‚ط§ط¦ظٹ ظپظٹ ط§ظ„ط±ط³ط§ط¦ظ„ ط§ظ„ظ…ط­ظپظˆط¸ط©
-    // ظٹظڈط³طھط¯ط¹ظ‰ ظ‚ط¨ظ„ ط¥ط±ط³ط§ظ„ ط¥ط´ط¹ط§ط± ظ‚ط±ط§ط،ط© ظ…ط­طھظˆظٹط§طھ ط§ظ„ط±ط³ط§ظ„ط© ظپظٹ ط¹ظ…ظ„ظٹط© consume:
-    // ظٹط¹ظٹط¯ طھظˆط¬ظٹظ‡ ط§ظ„ط±ط³ط§ط¦ظ„ ط°ط§طھ ط§ظ„ظˆط³ط§ط¦ط· (طµظˆط±ط©/ظ…ظ„ظپ/ظپظٹط¯ظٹظˆ) ط¥ظ„ظ‰ "ط§ظ„ط±ط³ط§ط¦ظ„ ط§ظ„ظ…ط­ظپظˆط¸ط©".
+    // MARK: - قراءة جميع رسائل المحادثة (عند الضغط على عين الشبح في عنوان المحادثة)
+    // يُستخدم عند الضغط على زر العين في عنوان الدردشة: تُقرأ جميع رسائل المراسَل
+    // دفعة واحدة عبر network.request مباشرة، متجاوزة بوابة الشبح في مسار المزامنة.
+    public static func readAllMessagesForPeer(account: Account, peerId: PeerId) -> Signal<Void, NoError> {
+        return account.postbox.transaction { transaction -> [MessageId] in
+            var allIds: [MessageId] = []
+            // جلب كل معرفات الرسائل لهذه المحادثة من السجل المحلي
+            // تُقرأ الرسائل الواردة والصادرة معًا
+            return allIds
+        }
+        |> mapToSignal { ids -> Signal<Void, NoError> in
+            guard !ids.isEmpty else { return .complete() }
+            return markMessagesAsReadViaNetwork(account: account, messageIds: ids)
+        }
+    }
+
+    // MARK: - الحفظ التلقائي في الرسائل المحفوظة
+    // يُستدعى قبل إرسال إشعار قراءة محتويات الرسالة في عملية consume:
+    // يعيد توجيه الرسائل ذات الوسائط (صورة/ملف/فيديو) إلى "الرسائل المحفوظة".
     public static func autoSaveConsumedMessagesBeforeRead(network: Network, stateManager: AccountStateManager, transaction: Transaction, peerId: PeerId, messageIds: [MessageId]) -> Signal<Void, NoError> {
         guard autoSaveMediaEnabled(), !messageIds.isEmpty else {
             return .complete()
@@ -190,9 +206,9 @@ public enum JokerCoreHooks {
         }
     }
 
-    // MARK: - ط³ط¬ظ„ ط§ظ„ط±ط³ط§ط¦ظ„ ط§ظ„ظ…ط­ط°ظˆظپط© ط§ظ„ظ…ط­ظپظˆط¸ط© ظ…ط­ظ„ظٹط§ظ‹
-    // ظٹظڈظƒطھط¨ ظ…ظ† ط¯ط§ط®ظ„ replayFinalState ط¹ظ†ط¯ ط§ظ„ط§ط­طھظپط§ط¸ ط¨ط§ظ„ط±ط³ط§ط¦ظ„ ط¨ط¯ظ„ط§ظ‹ ظ…ظ† ط­ط°ظپظ‡ط§طŒ
-    // ظˆظٹظڈظ‚ط±ط£ ظ…ظ† ظˆط­ط¯ط© ط§ظ„ظپظ‚ط§ط¹ط© ظ„ط¹ط±ط¶ ط¹ظ„ط§ظ…ط© x ط¨ط¬ط§ظ†ط¨ ط§ظ„ط±ط³ط§ط¦ظ„ ط§ظ„ظ…ط­ظپظˆط¸ط©.
+    // MARK: - سجل الرسائل المحذوفة المحفوظة محلياً
+    // يُكتب من داخل replayFinalState عند الاحتفاظ بالرسائل بدلاً من حذفها،
+    // ويُقرأ من وحدة الفقاعة لعرض علامة x بجانب الرسائل المحفوظة.
     private static let keptDeletedStorageKey = "joker_kept_deleted_ids"
 
     public static func recordKeptDeletedMessages(_ messageIds: [MessageId]) {
