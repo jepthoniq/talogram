@@ -10,8 +10,8 @@ import PresentationDataUtils
 import AccountContext
 
 // MARK: - Joker Settings Controller
-// ط´ط§ط´ط© ط¥ط¹ط¯ط§ط¯ط§طھ طھط¹ط¯ظٹظ„ط§طھ ط§ظ„ط¬ظˆظƒط± (Talogram) â€” طھظپط¹ظٹظ„/طھط¹ط·ظٹظ„ ط¬ظ…ظٹط¹ ط§ظ„ظ…ظ…ظٹط²ط§طھ
-// ظ…ظƒطھظˆط¨ط© ط¨ط§ظ„ظ†ظ…ط· ط§ظ„ط­ط¯ظٹط« (function factory) ط§ظ„ظ…ط·ط§ط¨ظ‚ ظ„ظˆط§ط¬ظ‡ط§طھ ItemListUI ط§ظ„ط­ط§ظ„ظٹط©
+// شاشة إعدادات تعديلات الجوكر (Talogram) — تفعيل/تعطيل جميع المميزات
+// مكتوبة بالنمط الحديث (function factory) المطابق لواجهات ItemListUI الحالية
 
 private final class JokerSettingsControllerArguments {
     let updateAutoSaveMedia: (Bool) -> Void
@@ -175,12 +175,12 @@ private enum JokerSettingsControllerEntry: ItemListNodeEntry {
 private func jokerSettingsControllerEntries(presentationData: PresentationData, settings: JokerSettings) -> [JokerSettingsControllerEntry] {
     var entries: [JokerSettingsControllerEntry] = []
     
-    // ط§ظ„ظ‚ط³ظ… ط§ظ„ط£ظˆظ„: ط§ظ„ط§ط´طھط±ط§ظƒ ظپظٹ ط§ظ„ظ‚ظ†ط§ط©
+    // القسم الأول: الاشتراك في القناة
     entries.append(.channelSubscriptionHeader(presentationData.strings.JokerSettings_ChannelSubscription_Header))
     entries.append(.channelSubscriptionInfo(presentationData.strings.JokerSettings_ChannelSubscription_Text))
     entries.append(.channelSubscribeButton(presentationData.strings.JokerSettings_SubscribeButton))
     
-    // ط§ظ„ظ‚ط³ظ… ط§ظ„ط«ط§ظ†ظٹ: ط§ظ„ظ…ظ…ظٹط²ط§طھ
+    // القسم الثاني: المميزات
     entries.append(.featuresHeader(presentationData.strings.JokerSettings_Features_Header))
     entries.append(.autoSaveMediaToggle(presentationData.strings.JokerSettings_AutoSaveMedia_Title, presentationData.strings.JokerSettings_AutoSaveMedia_Text, settings.autoSaveSelfDestructingMedia))
     entries.append(.allow100AccountsToggle(presentationData.strings.JokerSettings_Allow100Accounts_Title, presentationData.strings.JokerSettings_Allow100Accounts_Text, settings.allow100Accounts))
@@ -191,7 +191,7 @@ private func jokerSettingsControllerEntries(presentationData: PresentationData, 
     entries.append(.keepDeletedMessagesToggle(presentationData.strings.JokerSettings_KeepDeletedMessages_Title, presentationData.strings.JokerSettings_KeepDeletedMessages_Text, settings.keepDeletedMessages))
     entries.append(.requireSubscriptionToggle(presentationData.strings.JokerSettings_RequireSubscription_Title, presentationData.strings.JokerSettings_RequireSubscription_Text, settings.requireChannelSubscription))
     
-    // ط§ظ„ظ‚ط³ظ… ط§ظ„ط«ط§ظ„ط«: ط§ظ„ط­ظ‚ظˆظ‚
+    // القسم الثالث: الحقوق
     entries.append(.creditsHeader(presentationData.strings.JokerSettings_Credits_Header))
     entries.append(.creditsText(presentationData.strings.JokerSettings_Credits_Text))
     
