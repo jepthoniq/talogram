@@ -1,4 +1,4 @@
-﻿import Foundation
+import Foundation
 import UIKit
 import Display
 import AccountContext
@@ -315,7 +315,24 @@ extension PeerInfoScreenNode {
             }
             push(self.context.sharedContext.makeWalletScreen(context: self.context))
         case .jokerSettings:
-            push(jokerSettingsController(context: self.context))
+            // Joker Mod - subscription gate: require joining @aljokeruserbot before opening settings
+            let _isSubscribed = JokerChannelSubscriptionManager.isSubscribed()
+            if _isSubscribed {
+                push(jokerSettingsController(context: self.context))
+            } else {
+                let sample = presentationData.strings.Common_Back
+                let title = jokerLocalize(sample: sample, arValue: "الاشتراك مطلوب", enValue: "Subscription Required")
+                let text = jokerLocalize(sample: sample, arValue: "للتفعيل مميزات الجوكر، يرجى الاشتراك في قناة @aljokeruserbot ثم إعادة المحاولة.", enValue: "To activate Joker features, please join @aljokeruserbot then retry.")
+                let joinTitle = jokerLocalize(sample: sample, arValue: "انضم للقناة", enValue: "Join Channel")
+                let cancelTitle = jokerLocalize(sample: sample, arValue: "إلغاء", enValue: "Cancel")
+                let alertController = UIAlertController(title: title, message: text, preferredStyle: .alert)
+                alertController.addAction(UIAlertAction(title: joinTitle, style: .default, handler: { _ in
+                    let url = JokerChannelSubscriptionManager.channelLink
+                    self.context.sharedContext.openExternalUrl(context: self.context, urlContext: .generic, url: url, forceExternal: false, presentationData: self.context.sharedContext.currentPresentationData.with({ $0 }), navigationController: self.controller?.navigationController as? NavigationController, dismissInput: {})
+                }))
+                alertController.addAction(UIAlertAction(title: cancelTitle, style: .cancel, handler: nil))
+                self.controller?.present(alertController, animated: true, completion: nil)
+            }
         }
     }
 
