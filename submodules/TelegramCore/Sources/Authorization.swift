@@ -229,36 +229,12 @@ public func sendAuthorizationCode(accountManager: AccountManager<TelegramAccount
                             }
                         }
                     }
-                case Regex("RECAPTCHA_CHECK_.+__.+"):
-                    // Talogram: handle reCAPTCHA check like Nicegram-Android.
-                    // Extract action and key_id from "RECAPTCHA_CHECK_<action>__<key_id>"
-                    let fullError = error.errorDescription ?? ""
-                    let prefix = "RECAPTCHA_CHECK_"
-                    if fullError.hasPrefix(prefix) {
-                        let rest = String(fullError.dropFirst(prefix.count))
-                        if let usIndex = rest.firstIndex(of: "_") {
-                            let action = String(rest[..<usIndex])
-                            let keyId = String(rest[rest.index(after: usIndex)...].dropFirst())
-                            return account.networkArguments.externalRecaptchaRequestVerification(action, keyId)
-                            |> mapToSignal { recaptchaToken -> Signal<(SendCodeResult, UnauthorizedAccount), MTRpcError> in
-                                guard let token = recaptchaToken else {
-                                    return .fail(.generic(info: (403, "RECAPTCHA_FAILED_NO_TOKEN")))
-                                }
-                                let sendCodeWithCaptcha = Api.functions.auth.sendCode(
-                                    phoneNumber: phoneNumber,
-                                    apiId: apiId,
-                                    apiHash: apiHash,
-                                    settings: .codeSettings(.init(flags: flags, logoutTokens: authTokens.map { Buffer(data: $0) }, token: token, appSandbox: appSandbox))
-                                )
-                                return account.network.request(sendCodeWithCaptcha, automaticFloodWait: false)
-                                |> map { sentCode in
-                                    return (.sentCode(sentCode), account)
-                                }
-                            }
-                        }
-                    }
+                case Regex("RECAPTCHA_CHECK_"):
+                    // Talogram: server requires reCAPTCHA verification (like Nicegram-Android).
+                    // Return a specific error so the UI can show a clear message.
                     return .fail(.generic(info: (403, "RECAPTCHA_CHECK")))
                 case _:
+                    return .fail(error)
                     return .fail(error)
             }
         }
