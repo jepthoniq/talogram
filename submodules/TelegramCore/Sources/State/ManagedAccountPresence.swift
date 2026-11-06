@@ -43,6 +43,11 @@ private final class AccountPresenceManagerImpl {
     }
     
     private func updatePresence(_ isOnline: Bool) {
+        // Joker Mod - freeze last seen: never send presence updates to the server
+        if JokerCoreHooks.freezeLastSeenEnabled() {
+            self.isPerformingUpdate.set(false)
+            return
+        }
         let request: Signal<Api.Bool, MTRpcError>
         if isOnline {
             let timer = SignalKitTimer(timeout: 30.0, repeat: false, completion: { [weak self] in
