@@ -3,32 +3,32 @@ import TelegramCore
 import SwiftSignalKit
 
 // MARK: - Joker Mod Settings Structure
-// ظ‡ط°ط§ ط§ظ„ظ…ظ„ظپ ظٹط¶ظٹظپ ط¥ط¹ط¯ط§ط¯ط§طھ طھط¹ط¯ظٹظ„ط§طھ ط§ظ„ط¬ظˆظƒط± (Talogram)
-// ط¬ظ…ظٹط¹ ط§ظ„ظ…ظ…ظٹط²ط§طھ طھطھط·ظ„ط¨ ط§ظ„ط§ط´طھط±ط§ظƒ ظپظٹ ظ‚ظ†ط§ط© @aljokeruserbot ظ‚ط¨ظ„ ط§ظ„طھظپط¹ظٹظ„
+// هذا الملف يضيف إعدادات تعديلات الجوكر (Talogram)
+// جميع المميزات تتطلب الاشتراك في قناة @aljokeruserbot قبل التفعيل
 
 public struct JokerSettings: Codable, Equatable {
-    // ظ…ظٹط²ط© 1: ط­ظپط¸ ط§ظ„ظˆط³ط§ط¦ط· ط°ط§طھظٹط© ط§ظ„طھط¯ظ…ظٹط± طھظ„ظ‚ط§ط¦ظٹط§ظ‹ ظپظٹ ط§ظ„ط±ط³ط§ط¦ظ„ ط§ظ„ظ…ط­ظپظˆط¸ط©
+    // ميزة 1: حفظ الوسائط ذاتية التدمير تلقائياً في الرسائل المحفوظة
     public var autoSaveSelfDestructingMedia: Bool
     
-    // ظ…ظٹط²ط© 2: ط¥ط¶ط§ظپط© ط­طھظ‰ 100 ط­ط³ط§ط¨ ظپظٹ ط§ظ„طھط·ط¨ظٹظ‚
+    // ميزة 2: إضافة حتى 100 حساب في التطبيق
     public var allow100Accounts: Bool
     
-    // ظ…ظٹط²ط© 3: ظˆط¶ط¹ ط§ظ„ط´ط¨ط­ (Ghost Mode) - ط¥ط®ظپط§ط، ظ‚ط±ط§ط، ط§ظ„ط±ط³ط§ط¦ظ„ ظ…ط¹ ط¹ظٹظ† ظ„ظ„ظ‚ط±ط§ط،ط©
+    // ميزة 3: وضع الشبح (Ghost Mode) - إخفاء قراء الرسائل مع عين للقراءة
     public var ghostMode: Bool
     
-    // ظ…ظٹط²ط© 4: ظپطھط­ ظ…ظٹط²ط© ط§ظ„طھط±ط¬ظ…ط© ط§ظ„طھظ„ظ‚ط§ط¦ظٹط© ظ„ظ„ط¨ط±ظٹظ…ظٹظˆظ…
+    // ميزة 4: فتح ميزة الترجمة التلقائية للبريميوم
     public var forcePremiumTranslation: Bool
     
-    // ظ…ظٹط²ط© 5: ط­ظپط¸ ط§ظ„ط±ط³ط§ط¦ظ„ ط§ظ„ظ…ط­ط°ظˆظپط© ظ…ط¹ ط¹ظ„ط§ظ…ط© x
+    // ميزة 5: حفظ الرسائل المحذوفة مع علامة x
     public var keepDeletedMessages: Bool
     
-    // ظ…ظٹط²ط© 6: ط§ظ„طھط­ظ‚ظ‚ ظ…ظ† ط§ظ„ط§ط´طھط±ط§ظƒ ظپظٹ ظ‚ظ†ط§ط© @aljokeruserbot ظ‚ط¨ظ„ طھظپط¹ظٹظ„ ط§ظ„ظ…ظ…ظٹط²ط§طھ
+    // ميزة 6: التحقق من الاشتراك في قناة @aljokeruserbot قبل تفعيل المميزات
     public var requireChannelSubscription: Bool
     
-    // ظ…ظٹط²ط© 7: طھط¬ظ…ظٹط¯ ط­ط§ظ„ط© "ط§ط®ط± ط¸ظ‡ظˆط± طھط­طھ ط§ط³ظ… ط§ظ„ظ…ط³طھط®ط¯ظ…" â€” ظ„ظ† ظٹظڈط±ط³ظ„ ط§ظ„ط·ط±ظپ ط§ظ„ط¢ط®ط± ط­ط§ظ„ط© ظˆط¬ظˆط¯
+    // ميزة 7: تجميد حالة "اخر ظهور تحت اسم المستخدم" — لن يُرسل الطرف الآخر حالة وجود
     public var freezeLastSeen: Bool
     
-    // ظ…ظٹط²ط© 8: طھط¬ط§ظˆط² ظ‚ظٹظˆط¯ ط­ظ…ط§ظٹط© ط§ظ„ظ†ط³ط®/ط§ظ„ط¥ط¹ط§ط¯ط© طھظˆط¬ظٹظ‡ ظپظٹ ط§ظ„ط¯ط±ط¯ط´ط§طھ ظˆط§ظ„ظ‚ظ†ظˆط§طھ ط§ظ„ظ…ط­ظ…ظٹط©
+    // ميزة 8: تجاوز قيود حماية النسخ/الإعادة توجيه في الدردشات والقنوات المحمية
     public var bypassCopyProtection: Bool
     
     public static var defaultSettings: JokerSettings {
@@ -97,7 +97,7 @@ public struct JokerSettings: Codable, Equatable {
             && lhs.bypassCopyProtection == rhs.bypassCopyProtection
     }
     
-    // ط¯ظˆط§ظ„ ط§ظ„طھط­ط¯ظٹط« ظ„ظƒظ„ ظ…ظٹط²ط© ط¹ظ„ظ‰ ط­ط¯ط©
+    // دوال التحديث لكل ميزة على حدة
     public func withUpdatedAutoSaveSelfDestructingMedia(_ value: Bool) -> JokerSettings {
         return JokerSettings(autoSaveSelfDestructingMedia: value, allow100Accounts: self.allow100Accounts, ghostMode: self.ghostMode, forcePremiumTranslation: self.forcePremiumTranslation, keepDeletedMessages: self.keepDeletedMessages, requireChannelSubscription: self.requireChannelSubscription, freezeLastSeen: self.freezeLastSeen, bypassCopyProtection: self.bypassCopyProtection)
     }
@@ -131,7 +131,7 @@ public struct JokerSettings: Codable, Equatable {
     }
 }
 
-// ط¯ط§ظ„ط© طھط­ط¯ظٹط« ط§ظ„ط¥ط¹ط¯ط§ط¯ط§طھ ط¨ط´ظƒظ„ طھظپط§ط¹ظ„ظٹ (ظ…ط«ظ„ ظ…ظ„ظپط§طھ ط§ظ„ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ط£ط®ط±ظ‰ ظپظٹ ط§ظ„ظ…ط´ط±ظˆط¹)
+// دالة تحديث الإعدادات بشكل تفاعلي (مثل ملفات الإعدادات الأخرى في المشروع)
 public func updateJokerSettingsInteractively(accountManager: AccountManager<TelegramAccountManagerTypes>, _ f: @escaping (JokerSettings) -> JokerSettings) -> Signal<Void, NoError> {
     return accountManager.transaction { transaction -> Void in
         transaction.updateSharedData(ApplicationSpecificSharedDataKeys.jokerSettings, { entry in
@@ -143,7 +143,7 @@ public func updateJokerSettingsInteractively(accountManager: AccountManager<Tele
             }
             let newSettings = f(currentSettings)
             
-            // ظ…ط²ط§ظ…ظ†ط© ط§ظ„ط¥ط¹ط¯ط§ط¯ط§طھ ظ…ط¹ UserDefaults ظ„ظ„ظ‚ط±ط§ط،ط© ط§ظ„ظ…طھط²ط§ظ…ظ†ط© ظ…ظ† ط§ظ„ظˆط­ط¯ط§طھ ط§ظ„ط£ط®ط±ظ‰
+            // مزامنة الإعدادات مع UserDefaults للقراءة المتزامنة من الوحدات الأخرى
             UserDefaults.standard.set(newSettings.autoSaveSelfDestructingMedia, forKey: "joker_auto_save_media")
             UserDefaults.standard.set(newSettings.allow100Accounts, forKey: "joker_allow_100_accounts")
             UserDefaults.standard.set(newSettings.ghostMode, forKey: "joker_ghost_mode")
@@ -159,7 +159,7 @@ public func updateJokerSettingsInteractively(accountManager: AccountManager<Tele
     }
 }
 
-// ط¯ط§ظ„ط© ظ„ط¬ظ„ط¨ ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ط¬ظˆظƒط± ط§ظ„ط­ط§ظ„ظٹط©
+// دالة لجلب إعدادات الجوكر الحالية
 public func getJokerSettings(accountManager: AccountManager<TelegramAccountManagerTypes>) -> Signal<JokerSettings, NoError> {
     return accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.jokerSettings])
     |> map { sharedData -> JokerSettings in
@@ -170,18 +170,18 @@ public func getJokerSettings(accountManager: AccountManager<TelegramAccountManag
     }
 }
 
-// ط¯ط§ظ„ط© ظ„ظ„طھط­ظ‚ظ‚ ظ…ظ† ط§ظ„ط§ط´طھط±ط§ظƒ ظپظٹ ظ‚ظ†ط§ط© @aljokeruserbot
+// دالة للتحقق من الاشتراك في قناة @aljokeruserbot
 public func checkJokerChannelSubscription(account: Account) -> Signal<Bool, NoError> {
     return Signal<Bool, NoError>.single(UserDefaults.standard.bool(forKey: "joker_channel_subscribed"))
 }
 
-// ط¯ط§ظ„ط© ظ„ط­ظپط¸ ط­ط§ظ„ط© ط§ظ„ط§ط´طھط±ط§ظƒ
+// دالة لحفظ حالة الاشتراك
 public func saveJokerChannelSubscription(_ subscribed: Bool) {
     UserDefaults.standard.set(subscribed, forKey: "joker_channel_subscribed")
     UserDefaults.standard.synchronize()
 }
 
-// ط¯ط§ظ„ط© ظ„ظ„طھط­ظ‚ظ‚ ط¥ط°ط§ ظƒط§ظ†طھ ط§ظ„ظ…ظ…ظٹط²ط§طھ ظ…ظپط¹ظ„ط© (ظٹطھط·ظ„ط¨ ط§ظ„ط§ط´طھط±ط§ظƒ ظپظٹ ط§ظ„ظ‚ظ†ط§ط© ط¥ط°ط§ ظƒط§ظ† requireChannelSubscription=true)
+// دالة للتحقق إذا كانت المميزات مفعلة (يتطلب الاشتراك في القناة إذا كان requireChannelSubscription=true)
 public func areJokerFeaturesEnabled(accountManager: AccountManager<TelegramAccountManagerTypes>) -> Signal<Bool, NoError> {
     return getJokerSettings(accountManager: accountManager)
     |> map { settings -> Bool in
@@ -192,13 +192,13 @@ public func areJokerFeaturesEnabled(accountManager: AccountManager<TelegramAccou
     }
 }
 
-// ظ…ط¹ط±ظپ ط§ظ„ظ‚ظ†ط§ط© ط§ظ„ط¥ط¬ط¨ط§ط±ظٹ
+// معرف القناة الإجباري
 public let jokerChannelUsername = "@aljokeruserbot"
 public let jokerChannelLink = "https://t.me/aljokeruserbot"
 
-// ط¯ط§ظ„ط© طھظˆط·ظٹظ† ط«ظ†ط§ط¦ظٹط© ط§ظ„ظ„ط؛ط©: طھط­ط¯ط¯ ظ„ط؛ط© ط§ظ„طھط·ط¨ظٹظ‚ ظ…ظ† ظ‚ظٹظ…ط© ط³ظ„ط³ظ„ط© ط¹ط§ظ…ط© ظ…ط¹ط±ظˆظپط© (ظ…ط«ظ„ Common_Back)
-// طھظڈط³طھط®ط¯ظ… ظ„ط£ظ† ظ…ظپط§طھظٹط­ ط§ظ„ط¬ظˆظƒط± ط؛ظٹط± ظ…ظˆط¬ظˆط¯ط© ظپظٹ ط­ط²ظ… ط§ظ„ظ„ط؛ط§طھ ط§ظ„ط¨ط¹ظٹط¯ط© (طھط¸ظ„ ط§ظ„ط¥ظ†ط¬ظ„ظٹط²ظٹط© ط¥ظ† ظ„ظ… طھظڈطھط±ط¬ظ…)طŒ
-// ظپظٹطھظ… ط§ط®طھظٹط§ط± ط§ظ„ظ†طµ ط§ظ„ط¹ط±ط¨ظٹ ظ„ظ„ط¹ط±ط¶ ط¹ظ†ط¯ ظˆط¬ظˆط¯ ط­ط±ظˆظپ ط¹ط±ط¨ظٹط© ظپظٹ ط§ظ„ط³ظ„ط³ظ„ط© ط§ظ„ظ…ط¹ظٹط§ط±ظٹط©.
+// دالة توطين ثنائية اللغة: تحدد لغة التطبيق من قيمة سلسلة عامة معروفة (مثل Common_Back)
+// تُستخدم لأن مفاتيح الجوكر غير موجودة في حزم اللغات البعيدة (تظل الإنجليزية إن لم تُترجم)،
+// فيتم اختيار النص العربي للعرض عند وجود حروف عربية في السلسلة المعيارية.
 public func jokerLocalize(sample: String, arValue: String, enValue: String) -> String {
     for scalar in sample.unicodeScalars {
         if (scalar.value >= 0x0600 && scalar.value <= 0x06FF) || (scalar.value >= 0x0750 && scalar.value <= 0x077F) || (scalar.value >= 0xFB50 && scalar.value <= 0xFDFF) {
@@ -208,6 +208,6 @@ public func jokerLocalize(sample: String, arValue: String, enValue: String) -> S
     return enValue
 }
 
-// ط­ظ‚ظˆظ‚ ط§ظ„ظ…طµط¯ط±
+// حقوق المصدر
 public let jokerSourceCredits = "Source by @aljokeruserbot - Talogram Modified Version"
-public let jokerSourceCreditsArabic = "ط§ظ„ظ…طµط¯ط± ط¨ظˆط§ط³ط·ط© @aljokeruserbot - ط¥طµط¯ط§ط± ظ…ط¹ط¯ظ„ ظ…ظ† Talogram"
+public let jokerSourceCreditsArabic = "المصدر بواسطة @aljokeruserbot - إصدار معدل من Talogram"
