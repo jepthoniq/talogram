@@ -58,32 +58,33 @@ public enum JokerCoreHooks {
         |> mapError { _ -> Void in
             return Void()
         }
-        |> mapToSignal { result -> Signal<Api.InputChannel?, Void> in
+        |> mapToSignal { result -> Signal<Bool, NoError> in
             switch result {
             case let .resolvedPeer(resolvedPeerData):
-                return postbox.transaction { transaction -> Peer? in
+                return postbox.transaction { transaction -> Bool in
                     let parsedPeers = AccumulatedPeers(transaction: transaction, chats: resolvedPeerData.chats, users: resolvedPeerData.users)
-                    return parsedPeers.get(resolvedPeerData.peer.peerId)
-                }
-                |> map { peer -> Api.InputChannel? in
-                    guard let peer else {
-                        return nil
+                    guard let peer = parsedPeers.get(resolvedPeerData.peer.peerId),
+                          let inputChannel = apiInputChannel(peer) else {
+                        return false
                     }
-                    return apiInputChannel(peer)
+                    return inputChannel == nil ? false : true
+                }
+                |> map { hasChannel -> Bool in
+                    return hasChannel
                 }
                 |> castError(Void.self)
-            }
-        }
-        |> mapToSignal { inputChannel -> Signal<Bool, Void> in
-            guard let inputChannel else {
-                return .single(false) |> castError(Void.self)
-            }
-            return network.request(Api.functions.channels.getParticipant(channel: inputChannel, participant: .inputPeerSelf))
-            |> map { _ -> Bool in
-                return true
-            }
-            |> `catch` { _ -> Signal<Void, NoError> in
-                return .fail(Void())
+                |> then { hasChannel -> Signal<Bool, NoError> in
+                    guard hasChannel else {
+                        return .single(false)
+                    }
+                    return network.request(Api.functions.channels.getParticipant(channel: .inputPeerSelf, participant: .inputPeerSelf))
+                    |> map { _ -> Bool in
+                        return true
+                    }
+                    |> `catch` { _ -> Signal<Bool, NoError> in
+                        return .single(false)
+                    }
+                }
             }
         }
         |> `catch` { _ -> Signal<Bool, NoError> in
@@ -148,7 +149,7 @@ public enum JokerCoreHooks {
     // دفعة واحدة عبر network.request مباشرة، متجاوزة بوابة الشبح في مسار المزامنة.
     public static func readAllMessagesForPeer(account: Account, peerId: PeerId) -> Signal<Void, NoError> {
         return account.postbox.transaction { transaction -> [MessageId] in
-            var allIds: [MessageId] = []
+            let allIds: [MessageId] = []
             // جلب كل معرفات الرسائل لهذه المحادثة من السجل المحلي
             // تُقرأ الرسائل الواردة والصادرة معًا
             return allIds
