@@ -10,8 +10,8 @@ import PresentationDataUtils
 import AccountContext
 
 // MARK: - Joker Settings Controller
-// شاشة إعدادات تعديلات الجوكر (Talogram) — تفعيل/تعطيل جميع المميزات
-// مكتوبة بالنمط الحديث (function factory) المطابق لواجهات ItemListUI الحالية
+// ط´ط§ط´ط© ط¥ط¹ط¯ط§ط¯ط§طھ طھط¹ط¯ظٹظ„ط§طھ ط§ظ„ط¬ظˆظƒط± (Talogram) â€” طھظپط¹ظٹظ„/طھط¹ط·ظٹظ„ ط¬ظ…ظٹط¹ ط§ظ„ظ…ظ…ظٹط²ط§طھ
+// ظ…ظƒطھظˆط¨ط© ط¨ط§ظ„ظ†ظ…ط· ط§ظ„ط­ط¯ظٹط« (function factory) ط§ظ„ظ…ط·ط§ط¨ظ‚ ظ„ظˆط§ط¬ظ‡ط§طھ ItemListUI ط§ظ„ط­ط§ظ„ظٹط©
 
 private final class JokerSettingsControllerArguments {
     let updateAutoSaveMedia: (Bool) -> Void
@@ -19,6 +19,8 @@ private final class JokerSettingsControllerArguments {
     let updateGhostMode: (Bool) -> Void
     let updateForcePremiumTranslation: (Bool) -> Void
     let updateKeepDeletedMessages: (Bool) -> Void
+    let updateFreezeLastSeen: (Bool) -> Void
+    let updateBypassCopyProtection: (Bool) -> Void
     let updateRequireSubscription: (Bool) -> Void
     let openChannel: () -> Void
     
@@ -28,6 +30,8 @@ private final class JokerSettingsControllerArguments {
         updateGhostMode: @escaping (Bool) -> Void,
         updateForcePremiumTranslation: @escaping (Bool) -> Void,
         updateKeepDeletedMessages: @escaping (Bool) -> Void,
+        updateFreezeLastSeen: @escaping (Bool) -> Void,
+        updateBypassCopyProtection: @escaping (Bool) -> Void,
         updateRequireSubscription: @escaping (Bool) -> Void,
         openChannel: @escaping () -> Void
     ) {
@@ -36,6 +40,8 @@ private final class JokerSettingsControllerArguments {
         self.updateGhostMode = updateGhostMode
         self.updateForcePremiumTranslation = updateForcePremiumTranslation
         self.updateKeepDeletedMessages = updateKeepDeletedMessages
+        self.updateFreezeLastSeen = updateFreezeLastSeen
+        self.updateBypassCopyProtection = updateBypassCopyProtection
         self.updateRequireSubscription = updateRequireSubscription
         self.openChannel = openChannel
     }
@@ -57,6 +63,8 @@ private enum JokerSettingsControllerEntry: ItemListNodeEntry {
     case allow100AccountsToggle(String, String, Bool)
     case ghostModeToggle(String, String, Bool)
     case forcePremiumTranslationToggle(String, String, Bool)
+    case freezeLastSeenToggle(String, String, Bool)
+    case bypassCopyProtectionToggle(String, String, Bool)
     case keepDeletedMessagesToggle(String, String, Bool)
     case requireSubscriptionToggle(String, String, Bool)
     
@@ -92,10 +100,14 @@ private enum JokerSettingsControllerEntry: ItemListNodeEntry {
             return 13
         case .forcePremiumTranslationToggle:
             return 14
-        case .keepDeletedMessagesToggle:
+        case .freezeLastSeenToggle:
             return 15
-        case .requireSubscriptionToggle:
+        case .bypassCopyProtectionToggle:
             return 16
+        case .keepDeletedMessagesToggle:
+            return 17
+        case .requireSubscriptionToggle:
+            return 18
         case .creditsHeader:
             return 20
         case .creditsText:
@@ -136,6 +148,14 @@ private enum JokerSettingsControllerEntry: ItemListNodeEntry {
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: title, text: text, value: value, sectionId: self.section, style: .blocks, updated: { value in
                 arguments.updateForcePremiumTranslation(value)
             })
+        case let .freezeLastSeenToggle(title, text, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: title, text: text, value: value, sectionId: self.section, style: .blocks, updated: { value in
+                arguments.updateFreezeLastSeen(value)
+            })
+        case let .bypassCopyProtectionToggle(title, text, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: title, text: text, value: value, sectionId: self.section, style: .blocks, updated: { value in
+                arguments.updateBypassCopyProtection(value)
+            })
         case let .keepDeletedMessagesToggle(title, text, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: title, text: text, value: value, sectionId: self.section, style: .blocks, updated: { value in
                 arguments.updateKeepDeletedMessages(value)
@@ -155,21 +175,23 @@ private enum JokerSettingsControllerEntry: ItemListNodeEntry {
 private func jokerSettingsControllerEntries(presentationData: PresentationData, settings: JokerSettings) -> [JokerSettingsControllerEntry] {
     var entries: [JokerSettingsControllerEntry] = []
     
-    // القسم الأول: الاشتراك في القناة
+    // ط§ظ„ظ‚ط³ظ… ط§ظ„ط£ظˆظ„: ط§ظ„ط§ط´طھط±ط§ظƒ ظپظٹ ط§ظ„ظ‚ظ†ط§ط©
     entries.append(.channelSubscriptionHeader(presentationData.strings.JokerSettings_ChannelSubscription_Header))
     entries.append(.channelSubscriptionInfo(presentationData.strings.JokerSettings_ChannelSubscription_Text))
     entries.append(.channelSubscribeButton(presentationData.strings.JokerSettings_SubscribeButton))
     
-    // القسم الثاني: المميزات
+    // ط§ظ„ظ‚ط³ظ… ط§ظ„ط«ط§ظ†ظٹ: ط§ظ„ظ…ظ…ظٹط²ط§طھ
     entries.append(.featuresHeader(presentationData.strings.JokerSettings_Features_Header))
     entries.append(.autoSaveMediaToggle(presentationData.strings.JokerSettings_AutoSaveMedia_Title, presentationData.strings.JokerSettings_AutoSaveMedia_Text, settings.autoSaveSelfDestructingMedia))
     entries.append(.allow100AccountsToggle(presentationData.strings.JokerSettings_Allow100Accounts_Title, presentationData.strings.JokerSettings_Allow100Accounts_Text, settings.allow100Accounts))
     entries.append(.ghostModeToggle(presentationData.strings.JokerSettings_GhostMode_Title, presentationData.strings.JokerSettings_GhostMode_Text, settings.ghostMode))
     entries.append(.forcePremiumTranslationToggle(presentationData.strings.JokerSettings_ForcePremiumTranslation_Title, presentationData.strings.JokerSettings_ForcePremiumTranslation_Text, settings.forcePremiumTranslation))
+    entries.append(.freezeLastSeenToggle(presentationData.strings.JokerSettings_FreezeLastSeen_Title, presentationData.strings.JokerSettings_FreezeLastSeen_Text, settings.freezeLastSeen))
+    entries.append(.bypassCopyProtectionToggle(presentationData.strings.JokerSettings_BypassCopyProtection_Title, presentationData.strings.JokerSettings_BypassCopyProtection_Text, settings.bypassCopyProtection))
     entries.append(.keepDeletedMessagesToggle(presentationData.strings.JokerSettings_KeepDeletedMessages_Title, presentationData.strings.JokerSettings_KeepDeletedMessages_Text, settings.keepDeletedMessages))
     entries.append(.requireSubscriptionToggle(presentationData.strings.JokerSettings_RequireSubscription_Title, presentationData.strings.JokerSettings_RequireSubscription_Text, settings.requireChannelSubscription))
     
-    // القسم الثالث: الحقوق
+    // ط§ظ„ظ‚ط³ظ… ط§ظ„ط«ط§ظ„ط«: ط§ظ„ط­ظ‚ظˆظ‚
     entries.append(.creditsHeader(presentationData.strings.JokerSettings_Credits_Header))
     entries.append(.creditsText(presentationData.strings.JokerSettings_Credits_Text))
     
@@ -191,6 +213,12 @@ public func jokerSettingsController(context: AccountContext) -> ViewController {
         },
         updateForcePremiumTranslation: { value in
             let _ = updateJokerSettingsInteractively(accountManager: context.sharedContext.accountManager, { $0.withUpdatedForcePremiumTranslation(value) }).start()
+        },
+        updateFreezeLastSeen: { value in
+            let _ = updateJokerSettingsInteractively(accountManager: context.sharedContext.accountManager, { $0.withUpdatedFreezeLastSeen(value) }).start()
+        },
+        updateBypassCopyProtection: { value in
+            let _ = updateJokerSettingsInteractively(accountManager: context.sharedContext.accountManager, { $0.withUpdatedBypassCopyProtection(value) }).start()
         },
         updateKeepDeletedMessages: { value in
             let _ = updateJokerSettingsInteractively(accountManager: context.sharedContext.accountManager, { $0.withUpdatedKeepDeletedMessages(value) }).start()
