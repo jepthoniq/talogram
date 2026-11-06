@@ -52,8 +52,7 @@ public class JokerIntegrationManager {
     // ملاحظة: engine.messages.readMessages غير متوفر في الإصدار الحالي من
     // TelegramCore، لذا يبقى فلاغًا هنا لربطه بمكالمة حقيقية لاحقاً.
     public static func markMessageAsRead(context: AccountContext, messageId: EngineMessage.Id) {
-        let apiMessageId = MessageId(peerId: messageId.peerId, namespace: messageId.namespace, id: messageId.id)
-        let _ = JokerCoreHooks.markMessagesAsReadViaNetwork(account: context.account, messageIds: [apiMessageId]).start()
+        let _ = JokerCoreHooks.readAllMessagesForPeer(account: context.account, peerId: messageId.peerId).start()
     }
 
     // MARK: - ميزة 3: الاحتفاظ بالرسائل المحذوفة
