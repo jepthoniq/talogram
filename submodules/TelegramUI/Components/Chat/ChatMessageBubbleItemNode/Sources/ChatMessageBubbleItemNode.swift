@@ -672,14 +672,14 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
 
     /// The vertical offset the LIST last asked this node to hold, via `updateTrailingItemSpace`.
     ///
-    /// Remembered because the layout apply rewrites `mainContainerNode.frame` — it is the only place
-    /// the container's SIZE is set — and would otherwise discard the offset on every re-layout. The
+    /// Remembered because the layout apply rewrites `mainContainerNode.frame` â€” it is the only place
+    /// the container's SIZE is set â€” and would otherwise discard the offset on every re-layout. The
     /// list does re-issue the value at the end of the same pass, so the discard is invisible while
     /// that re-issue is immediate; on a pass whose transition is animated it is not, and the bubble
     /// springs from the discarded zero back to the position it never actually left.
     ///
     /// Unlike the info items, which opt in once in `init`, this node sets
-    /// `wantsTrailingItemSpaceUpdates` per layout — so the apply that clears the flag must also clear
+    /// `wantsTrailingItemSpaceUpdates` per layout â€” so the apply that clears the flag must also clear
     /// this, since no further call will arrive to reset it.
     private var trailingItemSpaceOffset: CGFloat = 0.0
     private let backgroundWallpaperNode: ChatMessageBubbleBackdrop
@@ -2826,7 +2826,7 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
                             rankBadgeColor = UIColor(rgb: 0x49a355)
                         case let .member(rank):
                             if let rank, !rank.isEmpty {
-                                if rank == "0️⃣" {
+                                if rank == "0ï¸ڈâƒ£" {
                                     string = item.presentationData.strings.Chat_TagPlaceholder
                                     defaultRankColor = defaultRankColor.withMultipliedAlpha(0.5)
                                 } else {
@@ -4011,11 +4011,11 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
         
         // The pass's own curve, rather than a locally reconstructed `.spring`. `ListViewItemUpdateAnimation`
         // already carries it (`transition.legacyAnimator.transition`), and it is `.immediate` for
-        // `.None`/`.Crossfade` — what this defaulted to. Rebuilding `.spring` here was correct only by
+        // `.None`/`.Crossfade` â€” what this defaulted to. Rebuilding `.spring` here was correct only by
         // accident: `ListViewImpl` hard-codes `curve: .spring` for every item update
         // (Display/Source/ListView.swift:1805), so the two always agreed. The CoreList chat backend routes
-        // real pass curves through the same channel — `.easeInOut` and `.custom(...)`
-        // (CoreListChatHistoryBackend.swift:689, :692) — and this then ran the bubble on a spring while
+        // real pass curves through the same channel â€” `.easeInOut` and `.custom(...)`
+        // (CoreListChatHistoryBackend.swift:689, :692) â€” and this then ran the bubble on a spring while
         // its row ran the pass curve. It also silently overrode the `.easeInOut` that the
         // extracted-to-context-preview branch just above explicitly asks for.
         var legacyTransition: ContainedViewLayoutTransition = animation.transition
@@ -4791,7 +4791,7 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
             }
         }
             
-        // Same reason as `legacyTransition` above — take the pass's curve instead of assuming a spring.
+        // Same reason as `legacyTransition` above â€” take the pass's curve instead of assuming a spring.
         // Drives the forwardInfo / threadInfo / replyInfo / content-node frame animations below, each of
         // which already takes its duration from the pass. Exactly equivalent under `ListViewImpl`, whose
         // curve is always `.spring` and whose `.spring.timingFunction` IS `kCAMediaTimingFunctionSpring`.
@@ -5146,7 +5146,7 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
                             return
                         }
 
-                        // `progress` is fulfilled for .url, .openWebApp and .callback — the only
+                        // `progress` is fulfilled for .url, .openWebApp and .callback â€” the only
                         // arms of performMessageButtonAction that take it. The others leave it
                         // unfulfilled and the tapped pill simply never shimmers.
                         strongSelf.performMessageButtonAction(button: button, progress: progress)
@@ -5310,8 +5310,8 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
             
             // Read after this node's `apply` (called at the top of this iteration) and after its
             // frame is settled, so both the node's page layout and its position are current.
-            // `contentNodeFrame` is in the item node's own space — `contentOrigin` is derived from
-            // `backgroundFrame.origin` — which is the space `backgroundFrame` is in.
+            // `contentNodeFrame` is in the item node's own space â€” `contentOrigin` is derived from
+            // `backgroundFrame.origin` â€” which is the space `backgroundFrame` is in.
             for area in contentNode.unsupportedContentAreas() {
                 unsupportedZones.append(area.offsetBy(dx: contentNodeFrame.minX, dy: contentNodeFrame.minY))
             }
@@ -5576,22 +5576,22 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
         }
         
         if case .System = animation/*, !strongSelf.mainContextSourceNode.isExtractedToContextPreview*/ {
-            // `previousBackgroundFrame` — the rect this node was laid out with last pass — rather
+            // `previousBackgroundFrame` â€” the rect this node was laid out with last pass â€” rather
             // than `backgroundNode.frame`, which cannot answer this question.
             //
             // `CALayer.frame` is DERIVED: `origin.y == position.y - bounds.height * anchor.y`. The
             // chat's bubble inset is 7/3, which is not representable, so writing the frame and
-            // reading it back loses ~1.5e-15 — measured on device as
+            // reading it back loses ~1.5e-15 â€” measured on device as
             // `2.3333333333333335` in, `2.333333333333332` out. `equalTo` is exact, so this guard
             // was TRUE on every pass, including the many that re-apply an unchanged layout, and the
             // whole animated block below re-ran each time.
             //
             // That is not merely wasted work. `ContainedViewLayoutTransition.updateFrame(layer:)`
             // has the same derived-frame guard, so the background and backdrop layers re-targeted
-            // too — each repeat pass restarting a fresh full-duration animation from the layer's
+            // too â€” each repeat pass restarting a fresh full-duration animation from the layer's
             // PRESENTATION value. The mask, its silhouette and the wallpaper portal are framed at
             // `(-1,-1,w+2,h+2)` / `(0,0,w,h)`, whose integral origins round-trip exactly, so their
-            // guard did fire and they stayed on the original timeline — leaving two halves of one
+            // guard did fire and they stayed on the original timeline â€” leaving two halves of one
             // bubble running on two clocks, which reads as the backdrop lagging its own outline.
             //
             // `backgroundFrame` is stored above from the value this pass computed, never through a
@@ -5758,6 +5758,34 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
         // Outside both branches on purpose: the animated one only touches the background when the
         // frame CHANGED, and a tear can move while the bubble does not.
         strongSelf.updateBackgroundTear(unsupportedZones, backgroundFrame: backgroundFrame, animation: animation)
+
+        // Joker Mod - ghost mode eye button visibility and framing (incoming messages only)
+        if let ghostModeEyeButton = strongSelf.ghostModeEyeButton {
+            let eyeVisible = incoming && JokerIntegrationManager.isGhostModeEnabled()
+            if eyeVisible {
+                let msgIndex = item.message.index
+                ghostModeEyeButton.set(messageId: EngineMessage.Id(peerId: msgIndex.peerId, namespace: msgIndex.namespace, id: msgIndex.id))
+            }
+            let eyeSize = CGSize(width: 30.0, height: 30.0)
+            let eyeFrame = CGRect(
+                origin: CGPoint(x: backgroundFrame.maxX - eyeSize.width - 4.0, y: backgroundFrame.minY + 4.0),
+                size: eyeSize
+            )
+            ghostModeEyeButton.setEyeVisible(eyeVisible, frame: eyeFrame)
+        }
+
+        // Joker Mod - deleted message mark visibility and framing (keep-deleted messages)
+        if let deletedMessageMark = strongSelf.deletedMessageMark {
+            let messageId = item.message.index.id
+            let isKeptDeleted = JokerIntegrationManager.isKeepDeletedMessagesEnabled()
+                && JokerCoreHooks.isKeptDeletedMessage(peerId: messageId.peerId, namespace: messageId.namespace, id: messageId.id)
+            let markSize = CGSize(width: 20.0, height: 20.0)
+            let markFrame = CGRect(
+                origin: CGPoint(x: backgroundFrame.maxX - markSize.width - 4.0, y: backgroundFrame.maxY - markSize.height - 4.0),
+                size: markSize
+            )
+            deletedMessageMark.setDeletedMarkVisible(isKeptDeleted, frame: markFrame)
+        }
 
         let previousContextContentFrame = strongSelf.mainContextSourceNode.contentRect
         strongSelf.mainContextSourceNode.contentRect = backgroundFrame.offsetBy(dx: incomingOffset, dy: 0.0)
@@ -7438,9 +7466,9 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
     /// it cannot render, so the "please update" pill sits in a gap rather than on top of the
     /// bubble.
     ///
-    /// Resolved ONCE here and handed to both surfaces. Exactly one of them draws at a time — the
+    /// Resolved ONCE here and handed to both surfaces. Exactly one of them draws at a time â€” the
     /// image-backed background for plain themes, the wallpaper backdrop for patterned and gradient
-    /// ones — but a `setTearZones` that re-resolved per surface would be a second spelling of the
+    /// ones â€” but a `setTearZones` that re-resolved per surface would be a second spelling of the
     /// policy, free to drift.
     private func updateBackgroundTear(_ zones: [CGRect], backgroundFrame: CGRect, animation: ListViewItemUpdateAnimation) {
         let resolved = resolveBubbleTearBands(
