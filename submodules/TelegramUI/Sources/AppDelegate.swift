@@ -987,24 +987,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                 completion(false)
             }
         }, siriAuthorization: {
-            if buildConfig.isSiriEnabled {
-                if #available(iOS 10, *) {
-                    switch INSiriAuthorizationStatus.notDetermined {
-                    case .authorized:
-                        return .allowed
-                    case .denied, .restricted:
-                        return .denied
-                    case .notDetermined:
-                        return .notDetermined
-                    @unknown default:
-                        return .notDetermined
-                    }
-                } else {
-                    return .denied
-                }
-            } else {
-                return .denied
-            }
+            return .notDetermined
         }, getWindowHost: {
             return self.nativeWindow
         }, presentNativeController: { controller in
