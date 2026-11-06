@@ -726,10 +726,11 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             isDebugConfiguration = true
         }
         
+        // Talogram diagnostic build: always keep a file log so a failed login can be inspected.
         if isDebugConfiguration || buildConfig.isInternalBuild {
             LoggingSettings.defaultSettings = LoggingSettings(logToFile: true, logToConsole: false, redactSensitiveData: true)
         } else {
-            LoggingSettings.defaultSettings = LoggingSettings(logToFile: false, logToConsole: false, redactSensitiveData: true)
+            LoggingSettings.defaultSettings = LoggingSettings(logToFile: true, logToConsole: false, redactSensitiveData: true)
         }
         
         let isUITest = CommandLine.arguments.contains("--ui-test")
@@ -799,6 +800,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         let logsPath = rootPath + "/logs/app-logs"
         let _ = try? FileManager.default.createDirectory(atPath: logsPath, withIntermediateDirectories: true, attributes: nil)
         Logger.setSharedLogger(Logger(rootPath: rootPath, basePath: logsPath))
+        Logger.shared.log("TalogramDiag", "AppDelegate: file logging enabled at \(logsPath)")
 
         setManagedAudioSessionLogger({ s in
             Logger.shared.log("ManagedAudioSession", s)
@@ -1294,7 +1296,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         }
         self.sharedContextPromise.set(sharedContextSignal
         |> mapToSignal { sharedApplicationContext, loggingSettings -> Signal<SharedApplicationContext, NoError> in
-            Logger.shared.logToFile = loggingSettings.logToFile
+            Logger.shared.logToFile = true
             Logger.shared.logToConsole = loggingSettings.logToConsole
             Logger.shared.redactSensitiveData = loggingSettings.redactSensitiveData
             
