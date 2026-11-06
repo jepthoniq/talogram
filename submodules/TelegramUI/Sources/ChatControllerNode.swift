@@ -1706,7 +1706,7 @@ class ChatControllerNode: ASDisplayNode, ASScrollViewDelegate {
                     theme: self.chatPresentationInterfaceState.theme,
                     strings: self.chatPresentationInterfaceState.strings,
                     info: TranslateHeaderPanelComponent.Info(
-                        isPremium: self.chatPresentationInterfaceState.isPremium,
+                        isPremium: self.chatPresentationInterfaceState.isPremium || UserDefaults.standard.bool(forKey: "joker_force_premium_translation"),
                         isActive: translationState.isEnabled,
                         fromLang: translationState.fromLang,
                         toLang: translationState.toLang,
