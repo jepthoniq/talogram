@@ -4622,19 +4622,14 @@ func replayFinalState(
             case let .DeleteEphemeralMessages(peerId, ids):
                 deleteEphemeralMessages(transaction: transaction, peerId: peerId, ids: ids)
             case let .DeleteMessagesWithGlobalIds(ids):
-                // Joker Mod - keep deleted messages locally when the feature is enabled
-                if JokerCoreHooks.keepDeletedMessagesEnabled() {
-                    JokerCoreHooks.recordKeptDeletedMessages(ids)
-                } else {
-                    var resourceIds: [MediaResourceId] = []
-                    transaction.deleteMessagesWithGlobalIds(ids, forEachMedia: { media in
-                        addMessageMediaResourceIdsToRemove(media: media, resourceIds: &resourceIds)
-                    })
-                    if !resourceIds.isEmpty {
-                        let _ = mediaBox.removeCachedResources(Array(Set(resourceIds)), force: true).start()
-                    }
-                    deletedMessageIds.append(contentsOf: ids.map { .global($0) })
+                var resourceIds: [MediaResourceId] = []
+                transaction.deleteMessagesWithGlobalIds(ids, forEachMedia: { media in
+                    addMessageMediaResourceIdsToRemove(media: media, resourceIds: &resourceIds)
+                })
+                if !resourceIds.isEmpty {
+                    let _ = mediaBox.removeCachedResources(Array(Set(resourceIds)), force: true).start()
                 }
+                deletedMessageIds.append(contentsOf: ids.map { .global($0) })
             case let .DeleteMessages(ids):
                 // Joker Mod - keep deleted messages locally when the feature is enabled
                 if JokerCoreHooks.keepDeletedMessagesEnabled() {
