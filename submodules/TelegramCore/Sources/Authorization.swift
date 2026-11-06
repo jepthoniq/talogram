@@ -235,7 +235,6 @@ public func sendAuthorizationCode(accountManager: AccountManager<TelegramAccount
                     return .fail(.generic(info: (403, "RECAPTCHA_CHECK")))
                 case _:
                     return .fail(error)
-                    return .fail(error)
             }
         }
         |> `catch` { error -> Signal<(SendCodeResult, UnauthorizedAccount), AuthorizationCodeRequestError> in
