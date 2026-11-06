@@ -191,6 +191,7 @@ public func sendAuthorizationCode(accountManager: AccountManager<TelegramAccount
         }
         
         let sendCode = Api.functions.auth.sendCode(phoneNumber: phoneNumber, apiId: apiId, apiHash: apiHash, settings: .codeSettings(.init(flags: flags, logoutTokens: authTokens.map { Buffer(data: $0) }, token: token, appSandbox: appSandbox)))
+        Logger.shared.log("TalogramDiag", "sendAuthorizationCode: dc=\(account.masterDatacenterId) engine=\(account.network.engineKind) testing=\(account.testingEnvironment) apiId=\(apiId)")
         
         enum SendCodeResult {
             case password(hint: String?)
