@@ -138,15 +138,41 @@ public enum JokerCoreHooks {
     // يُستخدم عند الضغط على زر العين في عنوان الدردشة: تُقرأ جميع رسائل المراسَل
     // دفعة واحدة عبر network.request مباشرة، متجاوزة بوابة الشبح في مسار المزامنة.
     public static func readAllMessagesForPeer(account: Account, peerId: PeerId) -> Signal<Void, NoError> {
-        return account.postbox.transaction { transaction -> [MessageId] in
-            let allIds: [MessageId] = []
-            // جلب كل معرفات الرسائل لهذه المحادثة من السجل المحلي
-            // تُقرأ الرسائل الواردة والصادرة معًا
-            return allIds
+        return account.postbox.transaction { transaction -> (Api.InputPeer, Api.InputChannel?)? in
+            guard let peer = transaction.getPeer(peerId), let inputPeer = apiInputPeer(peer) else {
+                return nil
+            }
+            if peerId.namespace == Namespaces.Peer.CloudChannel {
+                return (inputPeer, apiInputChannel(peer))
+            }
+            return (inputPeer, nil)
         }
-        |> mapToSignal { ids -> Signal<Void, NoError> in
-            guard !ids.isEmpty else { return .complete() }
-            return markMessagesAsReadViaNetwork(account: account, messageIds: ids)
+        |> mapToSignal { resolved -> Signal<Void, NoError> in
+            guard let (inputPeer, inputChannel) = resolved else {
+                return .complete()
+            }
+            if peerId.namespace == Namespaces.Peer.CloudChannel, let inputChannel = inputChannel {
+                return account.network.request(Api.functions.channels.readHistory(channel: inputChannel, maxId: Int32.max - 1))
+                |> map { _ -> Void in
+                    return ()
+                }
+                |> `catch` { _ -> Signal<Void, NoError> in
+                    return .complete()
+                }
+            } else if peerId.namespace == Namespaces.Peer.CloudUser || peerId.namespace == Namespaces.Peer.CloudGroup {
+                return account.network.request(Api.functions.messages.readHistory(peer: inputPeer, maxId: Int32.max - 1))
+                |> map(Optional.init)
+                |> `catch` { _ -> Signal<Api.messages.AffectedMessages?, NoError> in
+                    return .single(nil)
+                }
+                |> mapToSignal { result -> Signal<Void, NoError> in
+                    if let result = result, case let .affectedMessages(affectedMessagesData) = result {
+                        account.stateManager.addUpdateGroups([.updatePts(pts: affectedMessagesData.pts, ptsCount: affectedMessagesData.ptsCount)])
+                    }
+                    return .complete()
+                }
+            }
+            return .complete()
         }
     }
 
