@@ -1,0 +1,154 @@
+name: Quick compile check
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+concurrency:
+  group: talogram-quick-check
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Compile check (no IPA)
+    runs-on: xcode-27
+    timeout-minutes: 240
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Check out submodules
+        run: |
+          git submodule update --init --recursive
+          if git submodule status --recursive | grep -Eq '^[-+U]'; then
+            echo "One or more pinned Git submodules were not checked out correctly."
+            exit 1
+          fi
+
+      - name: Check build environment
+        run: |
+          xcodebuild -version
+          EXPECTED_XCODE="$(python3 -c 'import json; print(json.load(open("versions.json"))["xcode"])')"
+          ACTUAL_XCODE="$(xcodebuild -version | awk 'NR == 1 {print $2}')"
+          if [ "$ACTUAL_XCODE" != "$EXPECTED_XCODE" ]; then
+            echo "Warning: This project expects Xcode $EXPECTED_XCODE, but the machine has Xcode $ACTUAL_XCODE. The build will continue."
+          fi
+
+      - name: Generate verification provisioning profiles
+        run: |
+          python3 build-system/Make/Make.py \
+            generate-verification-profiles \
+            --configurationPath build-system/appstore-configuration.json \
+            --codesigningInformationPath build-system/fake-codesigning \
+            --destination build/verification-codesigning/profiles \
+            --extendExpiration
+          mkdir -p build/verification-codesigning/certs
+          cp build-system/fake-codesigning/certs/* build/verification-codesigning/certs/
+
+      - name: Compile TelegramCore
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          python3 build-system/Make/Make.py \
+            --cacheDir "$HOME/telegram-bazel-cache" \
+            build \
+            --configurationPath build-system/appstore-configuration.json \
+            --codesigningInformationPath build/verification-codesigning \
+            --buildNumber 1 \
+            --configuration debug_sim_arm64 \
+            --continueOnError \
+            --target //submodules/TelegramCore:TelegramCore \
+            2>&1 | tee check-telegramcore.log
+
+      - name: Compile ChatTitleView
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          python3 build-system/Make/Make.py \
+            --cacheDir "$HOME/telegram-bazel-cache" \
+            build \
+            --configurationPath build-system/appstore-configuration.json \
+            --codesigningInformationPath build/verification-codesigning \
+            --buildNumber 1 \
+            --configuration debug_sim_arm64 \
+            --continueOnError \
+            --target //submodules/TelegramUI/Components/ChatTitleView:ChatTitleView \
+            2>&1 | tee check-chattitleview.log
+
+      - name: Compile PeerInfoScreen
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          python3 build-system/Make/Make.py \
+            --cacheDir "$HOME/telegram-bazel-cache" \
+            build \
+            --configurationPath build-system/appstore-configuration.json \
+            --codesigningInformationPath build/verification-codesigning \
+            --buildNumber 1 \
+            --configuration debug_sim_arm64 \
+            --continueOnError \
+            --target //submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen:PeerInfoScreen \
+            2>&1 | tee check-peerinfoscreen.log
+
+      - name: Compile SettingsUI
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          python3 build-system/Make/Make.py \
+            --cacheDir "$HOME/telegram-bazel-cache" \
+            build \
+            --configurationPath build-system/appstore-configuration.json \
+            --codesigningInformationPath build/verification-codesigning \
+            --buildNumber 1 \
+            --configuration debug_sim_arm64 \
+            --continueOnError \
+            --target //submodules/SettingsUI:SettingsUI \
+            2>&1 | tee check-settingsui.log
+
+      - name: Compile TelegramUIPreferences
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          python3 build-system/Make/Make.py \
+            --cacheDir "$HOME/telegram-bazel-cache" \
+            build \
+            --configurationPath build-system/appstore-configuration.json \
+            --codesigningInformationPath build/verification-codesigning \
+            --buildNumber 1 \
+            --configuration debug_sim_arm64 \
+            --continueOnError \
+            --target //submodules/TelegramUIPreferences:TelegramUIPreferences \
+            2>&1 | tee check-uipreferences.log
+
+      - name: Publish errors to summary
+        if: always()
+        run: |
+          {
+            echo "## Compile check summary"
+            echo ""
+            if grep -h -E "error:" check-*.log > /tmp/quick-check-errors.txt 2>/dev/null; then
+              echo '```'
+              sort -u /tmp/quick-check-errors.txt | head -n 120
+              echo '```'
+            else
+              echo "No compile errors found."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quick-check-logs-${{ github.run_number }}
+          path: check-*.log
+          if-no-files-found: ignore
+
+      - name: Fail if compile errors were found
+        run: |
+          if grep -q -E "error:" check-*.log; then
+            echo "Compile errors detected."
+            exit 1
+          fi
