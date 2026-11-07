@@ -40,7 +40,29 @@ jobs:
       - name: Force iOS device platform for standalone module builds
         run: |
           echo 'build --platforms=@build_bazel_apple_support//platforms:ios_arm64' >> .bazelrc
-          echo 'build --@build_bazel_rules_swift//swift:copt=-suppress-warnings' >> .bazelrc
+
+      - name: Relax warnings-as-errors for quick check only
+        run: |
+          python3 - <<'PY'
+          import os
+          for root, dirs, files in os.walk('.'):
+              dirs[:] = [d for d in dirs if d != '.git']
+              for name in files:
+                  if name != 'BUILD' and name != 'BUILD.bazel':
+                      continue
+                  path = os.path.join(root, name)
+                  try:
+                      with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+                          text = f.read()
+                  except OSError:
+                      continue
+                  if '-warnings-as-errors' not in text:
+                      continue
+                  new_text = text.replace('"-warnings-as-errors",', '').replace('"-warnings-as-errors"', '')
+                  if new_text != text:
+                      with open(path, 'w', encoding='utf-8') as f:
+                          f.write(new_text)
+          PY
 
       - name: Generate verification provisioning profiles
         run: |
