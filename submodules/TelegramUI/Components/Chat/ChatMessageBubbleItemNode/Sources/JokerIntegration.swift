@@ -117,6 +117,5 @@ public class JokerIntegrationManager {
             .withUpdatedRequireChannelSubscription(UserDefaults.standard.bool(forKey: "joker_require_subscription"))
             .withUpdatedFreezeLastSeen(UserDefaults.standard.bool(forKey: "joker_freeze_last_seen"))
             .withUpdatedBypassCopyProtection(UserDefaults.standard.bool(forKey: "joker_bypass_copy_protection"))
-        }
     }
 }
