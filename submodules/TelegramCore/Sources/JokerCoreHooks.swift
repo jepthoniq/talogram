@@ -61,19 +61,18 @@ public enum JokerCoreHooks {
         |> mapToSignal { result -> Signal<Bool, NoError> in
             switch result {
             case let .resolvedPeer(resolvedPeerData):
-                return postbox.transaction { transaction -> Bool in
+                return postbox.transaction { transaction -> Api.InputChannel? in
                     let parsedPeers = AccumulatedPeers(transaction: transaction, chats: resolvedPeerData.chats, users: resolvedPeerData.users)
-                    guard let peer = parsedPeers.get(resolvedPeerData.peer.peerId),
-                          let _ = apiInputChannel(peer) else {
-                        return false
+                    guard let peer = parsedPeers.get(resolvedPeerData.peer.peerId) else {
+                        return nil
                     }
-                    return true
+                    return apiInputChannel(peer)
                 }
-                |> mapToSignal { hasChannel -> Signal<Bool, NoError> in
-                    guard hasChannel else {
+                |> mapToSignal { inputChannel -> Signal<Bool, NoError> in
+                    guard let inputChannel = inputChannel else {
                         return .single(false)
                     }
-                    return network.request(Api.functions.channels.getParticipant(channel: .inputPeerSelf, participant: .inputPeerSelf))
+                    return network.request(Api.functions.channels.getParticipant(channel: inputChannel, participant: .inputPeerSelf))
                     |> map { _ -> Bool in
                         return true
                     }
