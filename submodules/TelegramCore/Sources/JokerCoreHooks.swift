@@ -55,35 +55,30 @@ public enum JokerCoreHooks {
             normalizedName.removeFirst()
         }
         return network.request(Api.functions.contacts.resolveUsername(flags: 0, username: normalizedName, referer: nil))
-        |> mapError { _ -> Void in
-            return Void()
+        |> map(Optional.init)
+        |> `catch` { _ -> Signal<Api.contacts.ResolvedPeer?, NoError> in
+            return .single(nil)
         }
         |> mapToSignal { result -> Signal<Bool, NoError> in
-            switch result {
-            case let .resolvedPeer(resolvedPeerData):
-                return postbox.transaction { transaction -> Api.InputChannel? in
-                    let parsedPeers = AccumulatedPeers(transaction: transaction, chats: resolvedPeerData.chats, users: resolvedPeerData.users)
-                    guard let peer = parsedPeers.get(resolvedPeerData.peer.peerId) else {
-                        return nil
-                    }
-                    return apiInputChannel(peer)
-                }
-                |> mapToSignal { inputChannel -> Signal<Bool, NoError> in
-                    guard let inputChannel = inputChannel else {
-                        return .single(false)
-                    }
-                    return network.request(Api.functions.channels.getParticipant(channel: inputChannel, participant: .inputPeerSelf))
-                    |> map { _ -> Bool in
-                        return true
-                    }
-                    |> `catch` { _ -> Signal<Bool, NoError> in
-                        return .single(false)
-                    }
-                }
+            guard let result = result, case let .resolvedPeer(resolvedPeerData) = result else {
+                return .single(false)
             }
-        }
-        |> `catch` { _ -> Signal<Bool, NoError> in
-            return .single(false)
+            let channels: [Api.InputChannel] = resolvedPeerData.chats.compactMap { chat -> Api.InputChannel? in
+                guard let peer = parseTelegramGroupOrChannel(chat: chat) else {
+                    return nil
+                }
+                return apiInputChannel(peer)
+            }
+            guard let inputChannel = channels.first else {
+                return .single(false)
+            }
+            return network.request(Api.functions.channels.getParticipant(channel: inputChannel, participant: .inputPeerSelf))
+            |> map { _ -> Bool in
+                return true
+            }
+            |> `catch` { _ -> Signal<Bool, NoError> in
+                return .single(false)
+            }
         }
     }
 
