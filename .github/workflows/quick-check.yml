@@ -40,6 +40,7 @@ jobs:
       - name: Force iOS device platform for standalone module builds
         run: |
           echo 'build --platforms=@build_bazel_apple_support//platforms:ios_arm64' >> .bazelrc
+          echo 'build --@build_bazel_rules_swift//swift:copt=-suppress-warnings' >> .bazelrc
 
       - name: Generate verification provisioning profiles
         run: |
@@ -64,7 +65,6 @@ jobs:
             --buildNumber 1 \
             --configuration debug_arm64 \
             --continueOnError \
-            --@build_bazel_rules_swift//swift:copt=-suppress-warnings \
             --target //submodules/TelegramCore:TelegramCore \
             2>&1 | tee check-telegramcore.log
 
@@ -80,7 +80,6 @@ jobs:
             --buildNumber 1 \
             --configuration debug_arm64 \
             --continueOnError \
-            --@build_bazel_rules_swift//swift:copt=-suppress-warnings \
             --target //submodules/TelegramUI/Components/ChatTitleView:ChatTitleView \
             2>&1 | tee check-chattitleview.log
 
@@ -96,7 +95,6 @@ jobs:
             --buildNumber 1 \
             --configuration debug_arm64 \
             --continueOnError \
-            --@build_bazel_rules_swift//swift:copt=-suppress-warnings \
             --target //submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen:PeerInfoScreen \
             2>&1 | tee check-peerinfoscreen.log
 
@@ -112,7 +110,6 @@ jobs:
             --buildNumber 1 \
             --configuration debug_arm64 \
             --continueOnError \
-            --@build_bazel_rules_swift//swift:copt=-suppress-warnings \
             --target //submodules/SettingsUI:SettingsUI \
             2>&1 | tee check-settingsui.log
 
@@ -128,7 +125,6 @@ jobs:
             --buildNumber 1 \
             --configuration debug_arm64 \
             --continueOnError \
-            --@build_bazel_rules_swift//swift:copt=-suppress-warnings \
             --target //submodules/TelegramUIPreferences:TelegramUIPreferences \
             2>&1 | tee check-uipreferences.log
 
@@ -144,7 +140,6 @@ jobs:
             --buildNumber 1 \
             --configuration debug_arm64 \
             --continueOnError \
-            --@build_bazel_rules_swift//swift:copt=-suppress-warnings \
             --target //submodules/TelegramUI/Components/Chat/ChatMessageBubbleItemNode:ChatMessageBubbleItemNode \
             2>&1 | tee check-chatmessagebubbleitemnode.log
 
