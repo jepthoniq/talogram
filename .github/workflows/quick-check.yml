@@ -39,7 +39,7 @@ jobs:
 
       - name: Force iOS device platform for standalone module builds
         run: |
-          echo 'build --cpu=ios_arm64' >> .bazelrc
+          echo 'build --platforms=@build_bazel_apple_support//platforms:ios_arm64' >> .bazelrc
 
       - name: Generate verification provisioning profiles
         run: |
