@@ -37,6 +37,10 @@ jobs:
             echo "Warning: This project expects Xcode $EXPECTED_XCODE, but the machine has Xcode $ACTUAL_XCODE. The build will continue."
           fi
 
+      - name: Force iOS device platform for standalone module builds
+        run: |
+          echo 'build --cpu=ios_arm64' >> .bazelrc
+
       - name: Generate verification provisioning profiles
         run: |
           python3 build-system/Make/Make.py \
