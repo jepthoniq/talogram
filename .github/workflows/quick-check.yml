@@ -58,7 +58,7 @@ jobs:
             --configurationPath build-system/appstore-configuration.json \
             --codesigningInformationPath build/verification-codesigning \
             --buildNumber 1 \
-            --configuration debug_sim_arm64 \
+            --configuration debug_arm64 \
             --continueOnError \
             --target //submodules/TelegramCore:TelegramCore \
             2>&1 | tee check-telegramcore.log
@@ -73,7 +73,7 @@ jobs:
             --configurationPath build-system/appstore-configuration.json \
             --codesigningInformationPath build/verification-codesigning \
             --buildNumber 1 \
-            --configuration debug_sim_arm64 \
+            --configuration debug_arm64 \
             --continueOnError \
             --target //submodules/TelegramUI/Components/ChatTitleView:ChatTitleView \
             2>&1 | tee check-chattitleview.log
@@ -88,7 +88,7 @@ jobs:
             --configurationPath build-system/appstore-configuration.json \
             --codesigningInformationPath build/verification-codesigning \
             --buildNumber 1 \
-            --configuration debug_sim_arm64 \
+            --configuration debug_arm64 \
             --continueOnError \
             --target //submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen:PeerInfoScreen \
             2>&1 | tee check-peerinfoscreen.log
@@ -103,7 +103,7 @@ jobs:
             --configurationPath build-system/appstore-configuration.json \
             --codesigningInformationPath build/verification-codesigning \
             --buildNumber 1 \
-            --configuration debug_sim_arm64 \
+            --configuration debug_arm64 \
             --continueOnError \
             --target //submodules/SettingsUI:SettingsUI \
             2>&1 | tee check-settingsui.log
@@ -118,7 +118,7 @@ jobs:
             --configurationPath build-system/appstore-configuration.json \
             --codesigningInformationPath build/verification-codesigning \
             --buildNumber 1 \
-            --configuration debug_sim_arm64 \
+            --configuration debug_arm64 \
             --continueOnError \
             --target //submodules/TelegramUIPreferences:TelegramUIPreferences \
             2>&1 | tee check-uipreferences.log
