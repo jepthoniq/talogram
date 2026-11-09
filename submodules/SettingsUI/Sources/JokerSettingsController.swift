@@ -18,7 +18,6 @@ private final class JokerSettingsControllerArguments {
     let updateFreezeLastSeen: (Bool) -> Void
     let updateBypassCopyProtection: (Bool) -> Void
     let updateStoryStealthMode: (Bool) -> Void
-    let openBusinessGreetingMessages: () -> Void
     let openBusinessQuickReplies: () -> Void
 
     init(
@@ -30,7 +29,6 @@ private final class JokerSettingsControllerArguments {
         updateFreezeLastSeen: @escaping (Bool) -> Void,
         updateBypassCopyProtection: @escaping (Bool) -> Void,
         updateStoryStealthMode: @escaping (Bool) -> Void,
-        openBusinessGreetingMessages: @escaping () -> Void,
         openBusinessQuickReplies: @escaping () -> Void
     ) {
         self.updateAutoSaveMedia = updateAutoSaveMedia
@@ -41,7 +39,6 @@ private final class JokerSettingsControllerArguments {
         self.updateFreezeLastSeen = updateFreezeLastSeen
         self.updateBypassCopyProtection = updateBypassCopyProtection
         self.updateStoryStealthMode = updateStoryStealthMode
-        self.openBusinessGreetingMessages = openBusinessGreetingMessages
         self.openBusinessQuickReplies = openBusinessQuickReplies
     }
 }
@@ -68,7 +65,6 @@ private enum JokerSettingsControllerEntry: ItemListNodeEntry {
     case storyStealthModeToggle(String, String, Bool)
 
     case businessHeader(String)
-    case businessGreetingMessages(String, String)
     case businessQuickReplies(String, String)
 
     case creditsHeader(String)
@@ -78,7 +74,7 @@ private enum JokerSettingsControllerEntry: ItemListNodeEntry {
         switch self {
         case .featuresHeader, .autoSaveMediaToggle, .allow100AccountsToggle, .ghostModeToggle, .forcePremiumTranslationToggle, .freezeLastSeenToggle, .bypassCopyProtectionToggle, .keepDeletedMessagesToggle, .storyStealthModeToggle:
             return JokerSettingsControllerSection.features.rawValue
-        case .businessHeader, .businessGreetingMessages, .businessQuickReplies:
+        case .businessHeader, .businessQuickReplies:
             return JokerSettingsControllerSection.business.rawValue
         case .creditsHeader, .creditsText:
             return JokerSettingsControllerSection.credits.rawValue
@@ -107,8 +103,6 @@ private enum JokerSettingsControllerEntry: ItemListNodeEntry {
             return 21
         case .businessHeader:
             return 18
-        case .businessGreetingMessages:
-            return 19
         case .businessQuickReplies:
             return 20
         case .creditsHeader:
@@ -161,10 +155,6 @@ private enum JokerSettingsControllerEntry: ItemListNodeEntry {
             })
         case let .businessHeader(title):
             return ItemListSectionHeaderItem(presentationData: presentationData, text: title, sectionId: self.section)
-        case let .businessGreetingMessages(title, text):
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, icon: nil, title: title, label: text, labelStyle: .multilineDetailText, sectionId: self.section, style: .blocks, action: {
-                arguments.openBusinessGreetingMessages()
-            })
         case let .businessQuickReplies(title, text):
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, icon: nil, title: title, label: text, labelStyle: .multilineDetailText, sectionId: self.section, style: .blocks, action: {
                 arguments.openBusinessQuickReplies()
@@ -190,8 +180,7 @@ private func jokerSettingsControllerEntries(presentationData: PresentationData, 
     entries.append(.keepDeletedMessagesToggle(jokerLocalized(presentationData, "الاحتفاظ بالرسائل المحذوفة", "Keep Deleted Messages"), jokerLocalized(presentationData, "الاحتفاظ بالرسائل المحذوفة في المحادثة", "Keep deleted messages locally with an 'x' mark next to the bubble. Clearing history deletes everything permanently."), settings.keepDeletedMessages))
     entries.append(.storyStealthModeToggle(jokerLocalized(presentationData, "تجميد مشاهدة الستوريات", "Freeze Story Views"), jokerLocalized(presentationData, "شاهد ستوريات الآخرين دون ظهورك في قائمة المشاهدين.", "View other people’s stories without appearing in their viewers list. Works entirely on your device — no subscription, no Telegram Business."), settings.storyStealthMode))
 
-    entries.append(.businessHeader(jokerLocalized(presentationData, "ميزات اخرى", "Local Features")))
-    entries.append(.businessGreetingMessages(jokerLocalized(presentationData, "رسالة ترحيبية", "Local Greeting Message"), jokerLocalized(presentationData, "عمل رسالة ترحيبية لكن لاتعمل عند قفل التطبيق", "Store a greeting message on your device for new customers. Not Telegram Business.")))
+    entries.append(.businessHeader(jokerLocalized(presentationData, "ميزات محلية", "Local Features")))
     entries.append(.businessQuickReplies(jokerLocalized(presentationData, "ردود سريعة", "Local Quick Replies"), jokerLocalized(presentationData, "أنشئ وأدر ردودًا سريعة على هذا الجهاز", "Create and manage local quick replies on this device. Not Telegram Business.")))
 
     entries.append(.creditsHeader(jokerLocalized(presentationData, "حقوق المصدر", "Source Credits")))
@@ -226,13 +215,6 @@ public func jokerSettingsController(context: AccountContext) -> ViewController {
         },
         updateStoryStealthMode: { value in
             let _ = updateJokerSettingsInteractively(accountManager: context.sharedContext.accountManager, { $0.withUpdatedStoryStealthMode(value) }).start()
-        },
-        openBusinessGreetingMessages: {
-            guard let settingsController else {
-                return
-            }
-            let controller = JokerLocalGreetingController(context: context)
-            settingsController.push(controller)
         },
         openBusinessQuickReplies: {
             guard let settingsController else {
