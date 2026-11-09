@@ -479,7 +479,7 @@ public final class StoryItemSetContainerComponent: Component {
         let eyeButton = ComponentView<Empty>()
         var privacyIcon: ComponentView<Empty>?
         var pictureInPictureIcon: ComponentView<Empty>?
-        private var eyeViewed = false
+        private var eyeViewedItemId: EngineStoryId?
         
         var captionItem: CaptionItem?
         
@@ -4718,8 +4718,7 @@ public final class StoryItemSetContainerComponent: Component {
                 }
             }
             
-            // Joker: أيقونة العين لتسجيل المشاهدة متجاوزة التجميد (تظهر أسفل يسار الشاشة)
-            if JokerCoreHooks.storyStealthModeEnabled() && !self.eyeViewed {
+            if JokerCoreHooks.storyStealthModeEnabled() && component.slice.effectivePeer.id != component.context.account.peerId && self.eyeViewedItemId != component.slice.item.id {
                 let eyeButtonSize = self.eyeButton.update(
                     transition: transition,
                     component: AnyComponent(PlainButtonComponent(
@@ -4728,7 +4727,7 @@ public final class StoryItemSetContainerComponent: Component {
                             tintColor: .white
                         )),
                         effectAlignment: .center,
-                        minSize: CGSize(width: 33.0, height: 64.0),
+                        minSize: CGSize(width: 44.0, height: 44.0),
                         action: { [weak self] in
                             guard let self, let component = self.component else {
                                 return
@@ -4736,19 +4735,25 @@ public final class StoryItemSetContainerComponent: Component {
                             let peerId = component.slice.effectivePeer.id
                             let storyId = component.slice.item.storyItem.id
                             let _ = JokerCoreHooks.markStoryViewedIgnoringStealth(account: component.context.account, peerId: peerId, storyId: storyId).startStandalone()
-                            self.eyeViewed = true
+                            self.eyeViewedItemId = component.slice.item.id
                             self.eyeButton.view?.removeFromSuperview()
                         },
-                        accessibility: ComponentAccessibility(label: component.strings.Story_Context_SaveToGallery)
+                        accessibility: ComponentAccessibility(label: component.strings.Story_Context_ViewStats)
                     )),
                     environment: {},
-                    containerSize: CGSize(width: 33.0, height: 64.0)
+                    containerSize: CGSize(width: 44.0, height: 44.0)
                 )
                 if let eyeButtonView = self.eyeButton.view {
                     if eyeButtonView.superview == nil {
                         self.controlsClippingView.addSubview(eyeButtonView)
                     }
-                    let eyeButtonFrame = CGRect(origin: CGPoint(x: 12.0, y: contentFrame.height - eyeButtonSize.height - component.containerInsets.bottom - 8.0), size: eyeButtonSize)
+                    let eyeY: CGFloat
+                    if let inputPanelFrameValue {
+                        eyeY = inputPanelFrameValue.minY - eyeButtonSize.height - 8.0
+                    } else {
+                        eyeY = contentFrame.height - eyeButtonSize.height - component.containerInsets.bottom - 8.0
+                    }
+                    let eyeButtonFrame = CGRect(origin: CGPoint(x: 12.0, y: eyeY), size: eyeButtonSize)
                     transition.setFrame(view: eyeButtonView, frame: eyeButtonFrame)
                     transition.setAlpha(view: eyeButtonView, alpha: 1.0)
                 }
