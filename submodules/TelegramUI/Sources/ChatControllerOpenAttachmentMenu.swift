@@ -347,7 +347,7 @@ extension ChatControllerImpl {
                     }
                     
                     if !isPaidMessages {
-                        if context.isPremium, shortcutMessageList.items.count > 0, let user = peer as? TelegramUser, user.botInfo == nil {
+                        if !getJokerLocalQuickReplies().isEmpty, let user = peer as? TelegramUser, user.botInfo == nil {
                             if let index = buttons.firstIndex(where: { $0 == .location }) {
                                 buttons.insert(.quickReply, at: index + 1)
                             } else {
@@ -1061,7 +1061,7 @@ extension ChatControllerImpl {
                         }
                         return true
                     case .quickReply:
-                        let replies = getJokerLocalQuickReplies()
+                        let replies = getJokerLocalQuickReplies().filter { !jokerNormalizedQuickReplyShortcut($0.shortcut ?? "").isEmpty }
                         let languageSample = presentationData.strings.Common_Back
                         strongSelf.attachmentController?.dismiss(animated: true)
                         if replies.isEmpty {
@@ -1072,14 +1072,14 @@ extension ChatControllerImpl {
                         }
                         let actionSheet = UIAlertController(title: jokerLocalize(sample: languageSample, arValue: "الردود السريعة", enValue: "Quick Replies"), message: nil, preferredStyle: .actionSheet)
                         for reply in replies.prefix(12) {
-                            let title = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
-                            let truncated = title.count > 80 ? String(title.prefix(80)) + "…" : title
-                            actionSheet.addAction(UIAlertAction(title: truncated, style: .default) { [weak strongSelf] _ in
-                                guard let strongSelf else {
-                                    return
-                                }
-                                let replyMessageSubject = strongSelf.presentationInterfaceState.interfaceState.replyMessageSubject
-                                strongSelf.sendMessages([.message(text: reply.text, attributes: [], inlineStickers: [:], mediaReference: nil, threadId: strongSelf.chatLocation.threadId, replyToMessageId: replyMessageSubject?.subjectModel, replyToStoryId: nil, localGroupingKey: nil, correlationId: nil, bubbleUpEmojiOrStickersets: [])])
+                            let normalizedShortcut = jokerNormalizedQuickReplyShortcut(reply.shortcut ?? "")
+                            var title = "/" + normalizedShortcut
+                            let preview = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if !preview.isEmpty {
+                                title += "  ·  " + (preview.count > 60 ? String(preview.prefix(60)) + "…" : preview)
+                            }
+                            actionSheet.addAction(UIAlertAction(title: title, style: .default) { [weak strongSelf] _ in
+                                strongSelf?.sendLocalQuickReply(id: reply.id)
                             })
                         }
                         actionSheet.addAction(UIAlertAction(title: presentationData.strings.Common_Cancel, style: .cancel))

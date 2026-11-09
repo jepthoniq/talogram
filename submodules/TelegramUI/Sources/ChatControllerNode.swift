@@ -5372,6 +5372,15 @@ class ChatControllerNode: ASDisplayNode, ASScrollViewDelegate {
             
             let trimmedInputText = effectiveInputText.string.trimmingCharacters(in: .whitespacesAndNewlines)
             let peerId = effectivePresentationInterfaceState.chatLocation.peerId
+            var allowLocalQuickReply = true
+            if case .customChatContents = effectivePresentationInterfaceState.subject {
+                allowLocalQuickReply = false
+            }
+            if allowLocalQuickReply, effectivePresentationInterfaceState.interfaceState.forwardMessageIds == nil, let localQuickReply = jokerLocalQuickReply(matchingShortcut: trimmedInputText) {
+                self.controller?.sendLocalQuickReply(id: localQuickReply.id)
+                completion()
+                return
+            }
             if peerId?.namespace != Namespaces.Peer.SecretChat, let interactiveEmojis = self.interactiveEmojis, interactiveEmojis.emojis.contains(trimmedInputText), effectiveInputText.attribute(ChatTextInputAttributes.customEmoji, at: 0, effectiveRange: nil) == nil {
                 messages.append(.message(text: "", attributes: [], inlineStickers: [:], mediaReference: AnyMediaReference.standalone(media: TelegramMediaDice(emoji: trimmedInputText)), threadId: self.chatLocation.threadId, replyToMessageId: self.chatPresentationInterfaceState.interfaceState.replyMessageSubject?.subjectModel, replyToStoryId: nil, localGroupingKey: nil, correlationId: nil, bubbleUpEmojiOrStickersets: []))
             } else {

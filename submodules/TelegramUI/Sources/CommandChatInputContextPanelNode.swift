@@ -395,21 +395,8 @@ final class CommandChatInputContextPanelNode: ChatInputContextPanelNode {
                 if let shortcutId = shortcut.id {
                     interfaceInteraction.sendShortcut(shortcutId)
                 }
-            case let .localShortcut(_, text):
-                interfaceInteraction.updateTextInputStateAndMode { textInputState, inputMode in
-                    var commandQueryRange: NSRange?
-                    inner: for (range, type, _) in textInputStateContextQueryRangeAndType(textInputState) {
-                        if type == [.command] {
-                            commandQueryRange = range
-                            break inner
-                        }
-                    }
-                    
-                    if let range = commandQueryRange {
-                        return (textInputState.replacingFlatRange(range, with: text), inputMode)
-                    }
-                    return (textInputState, inputMode)
-                }
+            case let .localShortcut(id, _):
+                interfaceInteraction.sendLocalQuickReply?(id)
             }
         }, openEditShortcuts: { [weak self] in
             guard let self, let interfaceInteraction = self.interfaceInteraction else {

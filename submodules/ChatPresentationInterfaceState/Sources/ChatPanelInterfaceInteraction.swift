@@ -107,6 +107,7 @@ public final class ChatPanelInterfaceInteraction {
     public let sendContextResult: (ChatContextResultCollection, ChatContextResult, ASDisplayNode, CGRect) -> Bool
     public let sendBotCommand: (EngineRawPeer, String) -> Void
     public let sendShortcut: (Int32) -> Void
+    public var sendLocalQuickReply: ((String) -> Void)?
     public let openEditShortcuts: () -> Void
     public let sendBotStart: (String?) -> Void
     public let botSwitchChatWithPayload: (EnginePeer.Id, String) -> Void

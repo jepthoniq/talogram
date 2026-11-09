@@ -4771,6 +4771,9 @@ extension ChatControllerImpl {
         }, statuses: ChatPanelInterfaceInteractionStatuses(editingMessage: self.editingMessage.get(), startingBot: self.startingBot.get(), unblockingPeer: self.unblockingPeer.get(), searching: self.searching.get(), loadingMessage: self.loadingMessage.get(), inlineSearch: self.performingInlineSearch.get()))
         
         self.interfaceInteraction = interfaceInteraction
+        interfaceInteraction.sendLocalQuickReply = { [weak self] id in
+            self?.sendLocalQuickReply(id: id)
+        }
         
         if let search = self.focusOnSearchAfterAppearance {
             self.focusOnSearchAfterAppearance = nil
