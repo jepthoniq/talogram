@@ -476,8 +476,10 @@ public final class StoryItemSetContainerComponent: Component {
         var currentSoundButtonState: Bool?
         let soundButton = ComponentView<Empty>()
         let downloadButton = ComponentView<Empty>()
+        let eyeButton = ComponentView<Empty>()
         var privacyIcon: ComponentView<Empty>?
         var pictureInPictureIcon: ComponentView<Empty>?
+        private var eyeViewed = false
         
         var captionItem: CaptionItem?
         
@@ -4714,6 +4716,44 @@ public final class StoryItemSetContainerComponent: Component {
                     inputPanelTransition.setScale(view: inputPanelView, scale: inputPanelScale)
                     transition.setAlpha(view: inputPanelView, alpha: inputPanelAlpha)
                 }
+            }
+            
+            // Joker: أيقونة العين لتسجيل المشاهدة متجاوزة التجميد (تظهر أسفل يسار الشاشة)
+            if JokerCoreHooks.storyStealthModeEnabled() && !self.eyeViewed {
+                let eyeButtonSize = self.eyeButton.update(
+                    transition: transition,
+                    component: AnyComponent(PlainButtonComponent(
+                        content: AnyComponent(BundleIconComponent(
+                            name: "Chat/Context Menu/Eye",
+                            tintColor: .white
+                        )),
+                        effectAlignment: .center,
+                        minSize: CGSize(width: 33.0, height: 64.0),
+                        action: { [weak self] in
+                            guard let self, let component = self.component else {
+                                return
+                            }
+                            let peerId = component.slice.effectivePeer.id
+                            let storyId = component.slice.item.storyItem.id
+                            let _ = JokerCoreHooks.markStoryViewedIgnoringStealth(account: component.context.account, peerId: peerId, storyId: storyId).startStandalone()
+                            self.eyeViewed = true
+                            self.eyeButton.view?.removeFromSuperview()
+                        },
+                        accessibility: ComponentAccessibility(label: component.strings.Story_Context_SaveToGallery)
+                    )),
+                    environment: {},
+                    containerSize: CGSize(width: 33.0, height: 64.0)
+                )
+                if let eyeButtonView = self.eyeButton.view {
+                    if eyeButtonView.superview == nil {
+                        self.controlsClippingView.addSubview(eyeButtonView)
+                    }
+                    let eyeButtonFrame = CGRect(origin: CGPoint(x: 12.0, y: contentFrame.height - eyeButtonSize.height - component.containerInsets.bottom - 8.0), size: eyeButtonSize)
+                    transition.setFrame(view: eyeButtonView, frame: eyeButtonFrame)
+                    transition.setAlpha(view: eyeButtonView, alpha: 1.0)
+                }
+            } else if let eyeButtonView = self.eyeButton.view {
+                eyeButtonView.removeFromSuperview()
             }
             
             if let captionItem = self.captionItem, captionItem.itemId != component.slice.item.id {

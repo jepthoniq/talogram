@@ -355,6 +355,24 @@ public enum JokerCoreHooks {
         }
     }
 
+    public static func markStoryViewedIgnoringStealth(account: Account, peerId: PeerId, storyId: Int32) -> Signal<Void, NoError> {
+        return account.postbox.transaction { transaction -> Api.InputPeer? in
+            return transaction.getPeer(peerId).flatMap(apiInputPeer)
+        }
+        |> mapToSignal { inputPeer -> Signal<Void, NoError> in
+            guard let inputPeer = inputPeer else {
+                return .complete()
+            }
+            return account.network.request(Api.functions.stories.readStories(peer: inputPeer, maxId: storyId))
+            |> map { _ -> Void in
+                return ()
+            }
+            |> `catch` { _ -> Signal<Void, NoError> in
+                return .complete()
+            }
+        }
+    }
+
     private static let keptDeletedStorageKey = "joker_kept_deleted_ids"
 
     public static func recordKeptDeletedMessages(_ messageIds: [MessageId]) {
