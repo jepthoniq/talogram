@@ -19,7 +19,7 @@ extension ChatControllerImpl {
         self.sendLocalQuickReply(reply: reply)
     }
 
-    private func makeLocalQuickReplyMedia(_ media: JokerQuickReplyMedia) -> EngineMedia? {
+    private func makeLocalQuickReplyMedia(_ media: JokerQuickReplyMedia) -> Media? {
         let fileURL = jokerQuickReplyMediaURL(fileName: media.fileName)
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
             return nil
@@ -44,7 +44,7 @@ extension ChatControllerImpl {
                 attributes: attributes,
                 alternativeRepresentations: []
             )
-            return .file(file)
+            return file
         } else {
             let resource = LocalFileReferenceMediaResource(localFilePath: fileURL.path, randomId: randomId)
             let representation = TelegramMediaImageRepresentation(
@@ -63,7 +63,7 @@ extension ChatControllerImpl {
                 partialReference: nil,
                 flags: []
             )
-            return .image(image)
+            return image
         }
     }
 
@@ -80,7 +80,7 @@ extension ChatControllerImpl {
         var messages: [EnqueueMessage] = []
 
         if let media = reply.media, let mediaValue = self.makeLocalQuickReplyMedia(media) {
-            var attributes: [MessageAttribute] = []
+            var attributes: [EngineMessage.Attribute] = []
             if !text.isEmpty {
                 let entities = generateTextEntities(text, enabledTypes: .all)
                 if !entities.isEmpty {
@@ -100,7 +100,7 @@ extension ChatControllerImpl {
                 bubbleUpEmojiOrStickersets: []
             ))
         } else if !text.isEmpty {
-            var attributes: [MessageAttribute] = []
+            var attributes: [EngineMessage.Attribute] = []
             let entities = generateTextEntities(text, enabledTypes: .all)
             if !entities.isEmpty {
                 attributes.append(TextEntitiesMessageAttribute(entities: entities))
