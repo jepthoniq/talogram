@@ -19,52 +19,55 @@ extension ChatControllerImpl {
         self.sendLocalQuickReply(reply: reply)
     }
 
-    private func makeLocalQuickReplyMedia(_ media: JokerQuickReplyMedia) -> Media? {
+    private func makeLocalQuickReplyImageMedia(_ media: JokerQuickReplyMedia) -> TelegramMediaImage? {
         let fileURL = jokerQuickReplyMediaURL(fileName: media.fileName)
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
             return nil
         }
         let randomId = Int64.random(in: Int64.min ... Int64.max)
-        if media.isVideo {
-            var attributes: [TelegramMediaFileAttribute] = []
-            attributes.append(.FileName(fileName: media.fileName))
-            attributes.append(.Video(duration: media.duration, size: PixelDimensions(width: media.width, height: media.height), flags: [.supportsStreaming], preloadSize: nil, coverTime: nil, videoCodec: nil))
-            let fileSize = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? NSNumber)?.int64Value
-            let resource = LocalFileVideoMediaResource(randomId: randomId, path: fileURL.path, adjustments: nil)
-            let file = TelegramMediaFile(
-                fileId: EngineMedia.Id(namespace: Namespaces.Media.LocalFile, id: randomId),
-                partialReference: nil,
-                resource: resource,
-                previewRepresentations: [],
-                videoThumbnails: [],
-                videoCover: nil,
-                immediateThumbnailData: nil,
-                mimeType: media.mimeType,
-                size: fileSize,
-                attributes: attributes,
-                alternativeRepresentations: []
-            )
-            return file
-        } else {
-            let resource = LocalFileReferenceMediaResource(localFilePath: fileURL.path, randomId: randomId)
-            let representation = TelegramMediaImageRepresentation(
-                dimensions: PixelDimensions(width: media.width, height: media.height),
-                resource: resource,
-                progressiveSizes: [],
-                immediateThumbnailData: nil,
-                hasVideo: false,
-                isPersonal: false
-            )
-            let image = TelegramMediaImage(
-                imageId: EngineMedia.Id(namespace: Namespaces.Media.LocalImage, id: randomId),
-                representations: [representation],
-                immediateThumbnailData: nil,
-                reference: nil,
-                partialReference: nil,
-                flags: []
-            )
-            return image
+        let resource = LocalFileReferenceMediaResource(localFilePath: fileURL.path, randomId: randomId)
+        let representation = TelegramMediaImageRepresentation(
+            dimensions: PixelDimensions(width: media.width, height: media.height),
+            resource: resource,
+            progressiveSizes: [],
+            immediateThumbnailData: nil,
+            hasVideo: false,
+            isPersonal: false
+        )
+        return TelegramMediaImage(
+            imageId: EngineMedia.Id(namespace: Namespaces.Media.LocalImage, id: randomId),
+            representations: [representation],
+            immediateThumbnailData: nil,
+            reference: nil,
+            partialReference: nil,
+            flags: []
+        )
+    }
+
+    private func makeLocalQuickReplyVideoMedia(_ media: JokerQuickReplyMedia) -> TelegramMediaFile? {
+        let fileURL = jokerQuickReplyMediaURL(fileName: media.fileName)
+        guard FileManager.default.fileExists(atPath: fileURL.path) else {
+            return nil
         }
+        let randomId = Int64.random(in: Int64.min ... Int64.max)
+        var attributes: [TelegramMediaFileAttribute] = []
+        attributes.append(.FileName(fileName: media.fileName))
+        attributes.append(.Video(duration: media.duration, size: PixelDimensions(width: media.width, height: media.height), flags: [.supportsStreaming], preloadSize: nil, coverTime: nil, videoCodec: nil))
+        let fileSize = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? NSNumber)?.int64Value
+        let resource = LocalFileVideoMediaResource(randomId: randomId, path: fileURL.path, adjustments: nil)
+        return TelegramMediaFile(
+            fileId: EngineMedia.Id(namespace: Namespaces.Media.LocalFile, id: randomId),
+            partialReference: nil,
+            resource: resource,
+            previewRepresentations: [],
+            videoThumbnails: [],
+            videoCover: nil,
+            immediateThumbnailData: nil,
+            mimeType: media.mimeType,
+            size: fileSize,
+            attributes: attributes,
+            alternativeRepresentations: []
+        )
     }
 
     private func sendLocalQuickReply(reply: JokerQuickReply) {
@@ -79,7 +82,20 @@ extension ChatControllerImpl {
         let text = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
         var messages: [EnqueueMessage] = []
 
-        if let media = reply.media, let mediaValue = self.makeLocalQuickReplyMedia(media) {
+        var mediaReference: AnyMediaReference?
+        if let media = reply.media {
+            if media.isVideo {
+                if let video = self.makeLocalQuickReplyVideoMedia(media) {
+                    mediaReference = .standalone(media: video)
+                }
+            } else {
+                if let image = self.makeLocalQuickReplyImageMedia(media) {
+                    mediaReference = .standalone(media: image)
+                }
+            }
+        }
+
+        if let mediaReference = mediaReference {
             var attributes: [EngineMessage.Attribute] = []
             if !text.isEmpty {
                 let entities = generateTextEntities(text, enabledTypes: .all)
@@ -91,7 +107,7 @@ extension ChatControllerImpl {
                 text: text,
                 attributes: attributes,
                 inlineStickers: [:],
-                mediaReference: .standalone(media: mediaValue),
+                mediaReference: mediaReference,
                 threadId: self.chatLocation.threadId,
                 replyToMessageId: replySubject?.subjectModel,
                 replyToStoryId: nil,
