@@ -15,12 +15,13 @@ public final class JokerLocalQuickRepliesController: ViewController {
     public init(context: AccountContext) {
         self.context = context
         self.tableView = UITableView(frame: .zero, style: .insetGrouped)
-        super.init(navigationBarPresentationData: NavigationBarPresentationData(presentationData: context.sharedContext.currentPresentationData.with { $0 }))
+        let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+        super.init(navigationBarPresentationData: NavigationBarPresentationData(presentationData: presentationData))
         self.title = jokerLocalize(sample: presentationData.strings.Common_Back, arValue: "ردود سريعة محلية", enValue: "Local Quick Replies")
         self.navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(self.addReply))
     }
 
-    required public init?(coder aDecoder: NSCoder) {
+    required public init(coder aDecoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
