@@ -1,4 +1,3 @@
-
 filegroup(
     name = "depot_tools_sources",
     srcs = glob([
