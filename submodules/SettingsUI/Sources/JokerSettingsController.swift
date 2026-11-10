@@ -203,6 +203,9 @@ public func jokerSettingsController(context: AccountContext) -> ViewController {
         },
         updateForcePremiumTranslation: { value in
             let _ = updateJokerSettingsInteractively(accountManager: context.sharedContext.accountManager, { $0.withUpdatedForcePremiumTranslation(value) }).start()
+            // Joker Mod: switching the free "Real-Time Translation" option on/off also switches the chat translation
+            // setting, so the translation panel appears in chats and channels right away (and messages translate).
+            let _ = updateTranslationSettingsInteractively(accountManager: context.sharedContext.accountManager, { $0.withUpdatedTranslateChats(value) }).start()
         },
         updateKeepDeletedMessages: { value in
             let _ = updateJokerSettingsInteractively(accountManager: context.sharedContext.accountManager, { $0.withUpdatedKeepDeletedMessages(value) }).start()

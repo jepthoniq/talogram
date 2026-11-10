@@ -217,6 +217,92 @@ func _internal_translateTexts(network: Network, texts: [(String, [MessageTextEnt
     }
 }
 
+/// Joker Mod: direct translation via the alternative translation engine (no Telegram Premium required). Used as a
+/// fallback when the server-side premium-gated translation API refuses the request.
+private func alternativeTranslateTextInternal(text: String, fromLang: String?, toLang: String) -> Signal<String?, NoError> {
+    return Signal { subscriber in
+        var task: URLSessionTask?
+        Queue.concurrentDefaultQueue().async {
+            var uri = "https://translate.googleapis.com/translate_a/single?client=gtx&sl="
+            uri += (fromLang ?? "auto").addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "auto"
+            uri += "&tl="
+            uri += toLang.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+            uri += "&dt=t&ie=UTF-8&oe=UTF-8&otf=1&ssel=0&tsel=0&kc=7&q="
+            uri += text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+
+            guard let url = URL(string: uri) else {
+                subscriber.putNext(nil)
+                subscriber.putCompletion()
+                return
+            }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 18_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.4 Mobile/15E148 Safari/604.1", forHTTPHeaderField: "User-Agent")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+            task = URLSession.shared.dataTask(with: request) { data, response, error in
+                guard error == nil, let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200, let data = data, let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [Any] else {
+                    subscriber.putNext(nil)
+                    subscriber.putCompletion()
+                    return
+                }
+                var result = ""
+                if let translationArray = jsonArray.first as? [Any] {
+                    for element in translationArray {
+                        if let translationBlock = element as? [Any], translationBlock.count > 0, let blockText = translationBlock[0] as? String, blockText != "null", !blockText.isEmpty {
+                            result += blockText
+                        }
+                    }
+                }
+                subscriber.putNext(result.isEmpty ? nil : result)
+                subscriber.putCompletion()
+            }
+            task?.resume()
+        }
+        return ActionDisposable {
+            task?.cancel()
+        }
+    }
+}
+
+/// Joker Mod: translate a list of plain messages with the alternative engine and shape the result as
+/// `Api.messages.TranslatedText`, so the rest of the pipeline applies it exactly like a server response.
+private func alternativeTranslationsForMessages(account: Account, messageIds: [EngineMessage.Id], fromLang: String?, toLang: String) -> Signal<Api.messages.TranslatedText?, TranslationError> {
+    return account.postbox.transaction { transaction -> [(Int, String)] in
+        var result: [(Int, String)] = []
+        for (index, messageId) in messageIds.enumerated() {
+            if let message = transaction.getMessage(messageId), !message.text.isEmpty {
+                result.append((index, message.text))
+            }
+        }
+        return result
+    }
+    |> castError(TranslationError.self)
+    |> mapToSignal { entries -> Signal<Api.messages.TranslatedText?, TranslationError> in
+        if entries.isEmpty {
+            return .single(nil)
+        }
+        let signals = entries.map { entry in
+            alternativeTranslateTextInternal(text: entry.1, fromLang: fromLang, toLang: toLang)
+            |> map { translated -> (Int, String?) in
+                return (entry.0, translated)
+            }
+        }
+        return combineLatest(signals)
+        |> map { pairs in
+            var texts = Array(repeating: "", count: messageIds.count)
+            for (index, translated) in pairs {
+                if let translated {
+                    texts[index] = translated
+                }
+            }
+            let result = texts.map { Api.TextWithEntities.textWithEntities(.init(text: $0, entities: [])) }
+            return .translateResult(.init(result: result))
+        }
+    }
+}
+
 func _internal_translateMessages(account: Account, messageIds: [EngineMessage.Id], fromLang: String?, toLang: String, enableLocalIfPossible: Bool, tone: TranslationTone = .neutral) -> Signal<Never, TranslationError> {
     var signals: [Signal<Void, TranslationError>] = []
     for (peerId, messageIds) in messagesIdsGroupedByPeerId(messageIds) {
@@ -308,6 +394,9 @@ private func _internal_translateMessagesByPeerId(account: Account, peerId: Engin
                 texts.append((solution.text, solution.entities))
             }
             return _internal_translateTexts(network: account.network, texts: texts, toLang: toLang)
+            |> `catch` { _ -> Signal<[(String, [MessageTextEntity])], TranslationError> in
+                return .single([])
+            }
         }
         
         let audioTranscriptions = messages.compactMap { message in
@@ -319,6 +408,9 @@ private func _internal_translateMessagesByPeerId(account: Account, peerId: Engin
         }
         let audioTranscriptionsSignals = audioTranscriptions.map { (text, id) in
             return _internal_translate(network: account.network, text: text, toLang: toLang)
+            |> `catch` { _ -> Signal<(String, [MessageTextEntity])?, TranslationError> in
+                return .single(nil)
+            }
         }
         
         var flags: Int32 = 0
@@ -338,6 +430,9 @@ private func _internal_translateMessagesByPeerId(account: Account, peerId: Engin
         } else {
             richSignal = _internal_translateRichMessages(account: account, inputPeer: inputPeer, messageIds: richMessageIds, toLang: toLang, tone: tone)
             |> map { _ in Void() }
+            |> `catch` { _ -> Signal<Void, TranslationError> in
+                return .single(Void())
+            }
         }
 
         let id: [Int32] = plainMessageIds.map { $0.id }
@@ -381,6 +476,11 @@ private func _internal_translateMessagesByPeerId(account: Account, peerId: Engin
                         return .single(.translateResult(.init(result: result)))
                     }
                 }
+                |> `catch` { _ -> Signal<Api.messages.TranslatedText?, TranslationError> in
+                    // Joker Mod: if the on-device system translation fails (e.g. the language pack is missing), fall back to the
+                    // alternative translation engine so messages still get translated.
+                    return alternativeTranslationsForMessages(account: account, messageIds: plainMessageIds, fromLang: fromLang, toLang: toLang)
+                }
             } else {
                 msgs = account.network.request(Api.functions.messages.translateText(flags: flags, peer: inputPeer, id: id, text: nil, toLang: toLang, tone: tone != .neutral ? tone.rawValue : nil))
                 |> map(Optional.init)
@@ -399,6 +499,12 @@ private func _internal_translateMessagesByPeerId(account: Account, peerId: Engin
                         return .generic
                     }
                 }
+                |> `catch` { _ -> Signal<Api.messages.TranslatedText?, TranslationError> in
+                    // Joker Mod: the server-side messages.translateText API is premium-gated. When the server refuses to translate
+                    // (e.g. the account is not a Premium subscriber), fall back to the alternative translation engine so free users
+                    // still get their chat texts translated.
+                    return alternativeTranslationsForMessages(account: account, messageIds: plainMessageIds, fromLang: fromLang, toLang: toLang)
+                }
             }
         }
         
@@ -413,8 +519,9 @@ private func _internal_translateMessagesByPeerId(account: Account, peerId: Engin
                         let messageId = plainMessageIds[index]
                         if case let .textWithEntities(textWithEntitiesData) = result {
                             let (text, entities) = (textWithEntitiesData.text, textWithEntitiesData.entities)
-                            let updatedAttribute: TranslationMessageAttribute = TranslationMessageAttribute(text: text, entities: messageTextEntitiesFromApiEntities(entities), toLang: toLang)
-                            transaction.updateMessage(messageId, update: { currentMessage in
+                            if !text.isEmpty {
+                                let updatedAttribute: TranslationMessageAttribute = TranslationMessageAttribute(text: text, entities: messageTextEntitiesFromApiEntities(entities), toLang: toLang)
+                                transaction.updateMessage(messageId, update: { currentMessage in
                                 let storeForwardInfo = currentMessage.forwardInfo.flatMap(StoreMessageForwardInfo.init)
                                 var attributes = currentMessage.attributes.filter { !($0 is TranslationMessageAttribute) }
                                 
@@ -422,6 +529,7 @@ private func _internal_translateMessagesByPeerId(account: Account, peerId: Engin
                                 
                                 return .update(StoreMessage(id: currentMessage.id, customStableId: nil, globallyUniqueId: currentMessage.globallyUniqueId, groupingKey: currentMessage.groupingKey, threadId: currentMessage.threadId, timestamp: currentMessage.timestamp, flags: StoreMessageFlags(currentMessage.flags), tags: currentMessage.tags, globalTags: currentMessage.globalTags, localTags: currentMessage.localTags, forwardInfo: storeForwardInfo, authorId: currentMessage.author?.id, text: currentMessage.text, attributes: attributes, media: currentMessage.media))
                             })
+                            }
                         }
                         index += 1
                     }

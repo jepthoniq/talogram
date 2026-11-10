@@ -2239,7 +2239,9 @@ extension ChatControllerImpl {
                         if (isPremium || maybeSuggestPremium || hasAutoTranslate) && !isHidden {
                             return chatTranslationState(context: context, peerId: peerId, threadId: chatLocation.threadId)
                             |> map { translationState -> ChatPresentationTranslationState? in
-                                if let translationState, !translationState.fromLang.isEmpty && (translationState.fromLang != baseLanguageCode || translationState.isEnabled) {
+                                // Joker Mod: with "Force Premium Translation" enabled, keep the translation bar visible even for chats in the
+                                // app's own language, so the user can still translate them to another language from the bar's menu.
+                                if let translationState, !translationState.fromLang.isEmpty && (translationState.fromLang != baseLanguageCode || translationState.isEnabled || jokerForcePremiumTranslation) {
                                     return ChatPresentationTranslationState(isEnabled: translationState.isEnabled, fromLang: translationState.fromLang, toLang: translationState.toLang ?? baseLanguageCode)
                                 } else {
                                     return nil

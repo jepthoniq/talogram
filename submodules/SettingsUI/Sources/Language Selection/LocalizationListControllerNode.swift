@@ -477,7 +477,9 @@ final class LocalizationListControllerNode: ViewControllerTracingNode {
                 return
             }
             
-            let isPremium = peer?.isPremium ?? false
+            // Joker Mod: "Real-Time Translation" (the "Translate Entire Chat" switch) is unlocked for everyone when
+            // the "Force Premium Translation" option in Joker Settings is enabled.
+            let isPremium = (peer?.isPremium ?? false) || UserDefaults.standard.bool(forKey: "joker_force_premium_translation")
                         
             var entries: [LanguageListEntry] = []
             var activeLanguageCode: String?

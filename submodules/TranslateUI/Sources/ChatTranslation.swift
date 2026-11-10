@@ -366,7 +366,9 @@ private func chatTranslationLocationState(context: AccountContext, peerId: Engin
             var dontTranslateLanguages = Set<String>()
             if let ignoredLanguages = settings.ignoredLanguages {
                 dontTranslateLanguages = Set(ignoredLanguages)
-            } else {
+            } else if !jokerForcePremiumTranslation {
+                // Joker Mod: with "Force Premium Translation" enabled, do not hide chats whose detected language matches the app's
+                // language - the translation bar should stay available everywhere.
                 dontTranslateLanguages.insert(baseLang)
                 for language in systemLanguageCodes() {
                     dontTranslateLanguages.insert(language)
