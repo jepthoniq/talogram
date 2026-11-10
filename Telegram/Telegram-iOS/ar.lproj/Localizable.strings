@@ -30,3 +30,8 @@
 "JokerAlert_SubscriptionRequired_Title" = "الاشتراك مطلوب";
 "JokerAlert_SubscriptionRequired_Text" = "يجب الاشتراك في قناة @aljokeruserbot لاستخدام مميزات الجوكر.";
 "JokerAlert_SubscribeButton" = "اشترك";
+"Chat.AudioBroadcast.Play" = "شغّل في المكالمة الصوتية";
+"Chat.AudioBroadcast.Stop" = "أوقف البث في المكالمة";
+"Chat.AudioBroadcast.NoAudio" = "لا يوجد ملف صوتي في هذه الرسالة";
+"Chat.AudioBroadcast.NoPermission" = "يلزم صلاحية إشراف لبدء مكالمة صوتية";
+"Chat.AudioBroadcast.Failed" = "تعذر تشغيل الصوت في المكالمة";
