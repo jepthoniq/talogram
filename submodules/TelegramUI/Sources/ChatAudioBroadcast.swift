@@ -2,7 +2,6 @@ import Foundation
 import UIKit
 import AsyncDisplayKit
 import TelegramCore
-import Postbox
 import SwiftSignalKit
 import AccountContext
 import UniversalMediaPlayer
@@ -14,15 +13,15 @@ import TelegramStringFormatting
 
 /// Joker: broadcast a message's audio file into the peer's voice chat directly from a chat.
 ///
-/// A long-press menu item in groups and channels ("شغّل في المكالمة" / "Play in Voice Chat") downloads the audio
-/// file (voice messages, mp3, ogg, … — anything FFmpeg can decode), joins (or creates) the peer's voice chat and
+/// A long-press menu item in groups and channels ("Play in Voice Chat") downloads the audio
+/// file (voice messages, mp3, ogg, anything FFmpeg can decode), joins (or creates) the peer's voice chat and
 /// streams the decoded PCM into it as the account's voice, mixed with the microphone. Tap the item again to stop
 /// the broadcast.
 public final class ChatAudioBroadcast {
     public enum State: Equatable {
         case idle
-        case fetching(messageId: MessageId)
-        case broadcasting(messageId: MessageId)
+        case fetching(messageId: EngineMessage.Id)
+        case broadcasting(messageId: EngineMessage.Id)
     }
 
     public static let shared = ChatAudioBroadcast()
@@ -42,7 +41,7 @@ public final class ChatAudioBroadcast {
     private var currentCall: PresentationGroupCallImpl?
     private var pcmData: Data?
     private var pcmOffset = 0
-    private var currentMessageId: MessageId?
+    private var currentMessageId: EngineMessage.Id?
     private let pcmLock = NSLock()
     private var injectionTimer: DispatchSourceTimer?
     private let injectionQueue = DispatchQueue(label: "chat.audioBroadcast.injection")
@@ -50,7 +49,7 @@ public final class ChatAudioBroadcast {
     private init() {
     }
 
-    public func isBroadcasting(messageId: MessageId) -> Bool {
+    public func isBroadcasting(messageId: EngineMessage.Id) -> Bool {
         if case let .broadcasting(id) = self.state, id == messageId {
             return true
         }
@@ -112,7 +111,8 @@ public final class ChatAudioBroadcast {
         self.fetchDisposable?.dispose()
         self.fetchDisposable = fetchDisposable.start()
 
-        let pipeline = messageMediaFileStatus(context: context, messageId: message.id, file: file)
+        let resource = EngineMediaResource(file.resource)
+        let pipeline = context.engine.resources.status(resource: resource)
         |> filter { status -> Bool in
             if case .Local = status {
                 return true
@@ -120,8 +120,8 @@ public final class ChatAudioBroadcast {
             return false
         }
         |> take(1)
-        |> mapToSignal { _ -> Signal<MediaResourceData, NoError> in
-            return context.account.postbox.mediaBox.resourceData(file.resource, pathExtension: nil, option: .complete(waitUntilFetchStatus: true))
+        |> mapToSignal { _ -> Signal<EngineMediaResource.ResourceData, NoError> in
+            return context.engine.resources.data(resource: resource, waitUntilFetchStatus: true)
         }
         self.prepareDisposable?.dispose()
         self.prepareDisposable = pipeline.start(next: { [weak self] resourceData in
