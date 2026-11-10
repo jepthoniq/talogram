@@ -300,6 +300,7 @@ private func alternativeTranslationsForMessages(account: Account, messageIds: [E
             let result = texts.map { Api.TextWithEntities.textWithEntities(.init(text: $0, entities: [])) }
             return .translateResult(.init(result: result))
         }
+        |> castError(TranslationError.self)
     }
 }
 
