@@ -168,7 +168,8 @@ public final class CallRecording {
                 var value = (left + right) / 2
                 value = max(-32768, min(32767, value))
                 var sample16 = Int16(truncatingIfNeeded: value)
-                withUnsafeBytes(of: &sample16.littleEndian) { mono.append(contentsOf: $0) }
+                var sample16le = sample16.littleEndian
+                withUnsafeBytes(of: &sample16le) { mono.append(contentsOf: $0) }
             }
             data = mono
         } else {
