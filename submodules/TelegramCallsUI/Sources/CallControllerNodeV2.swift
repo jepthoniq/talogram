@@ -112,11 +112,11 @@ final class CallControllerNodeV2: ViewControllerTracingNode, CallControllerNodeP
         self.containerView = UIView()
         self.containerView.clipsToBounds = true
         self.callScreen = PrivateCallScreen()
-        self.recordPillView = JokerRecordPillView(action: { [weak self] in
-            guard let self else {
+        self.recordPillView = JokerRecordPillView(action: { [weak call] in
+            guard let call else {
                 return
             }
-            CallRecording.shared.toggle(accountContext: self.call.context, call: self.call)
+            CallRecording.shared.toggle(accountContext: call.context, call: call)
         })
 
         super.init()
