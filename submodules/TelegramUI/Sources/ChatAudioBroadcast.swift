@@ -47,6 +47,7 @@ public final class ChatAudioBroadcast {
     private var fetchDisposable: Disposable?
     private var prepareDisposable: Disposable?
     private var watcherDisposable: Disposable?
+    private var callStateDisposable: Disposable?
 
     private var currentCall: PresentationGroupCallImpl?
     private var pcmData: Data?
@@ -72,6 +73,8 @@ public final class ChatAudioBroadcast {
         self.stopInjectionTimer()
         self.watcherDisposable?.dispose()
         self.watcherDisposable = nil
+        self.callStateDisposable?.dispose()
+        self.callStateDisposable = nil
         self.fetchDisposable?.dispose()
         self.fetchDisposable = nil
         self.prepareDisposable?.dispose()
@@ -267,6 +270,26 @@ public final class ChatAudioBroadcast {
         self.stopInjectionTimer()
         self.currentCall = call
 
+        // Wait until the call is actually connected: the external audio is buffered by the call engine for at most
+        // a couple of seconds, so starting earlier would lose the beginning of the track.
+        self.callStateDisposable?.dispose()
+        self.callStateDisposable = (call.state
+        |> filter { state -> Bool in
+            return state.networkState == .connected
+        }
+        |> take(1)
+        |> deliverOnMainQueue).start(next: { [weak self] _ in
+            guard let self else {
+                return
+            }
+            guard self.currentCall === call else {
+                return
+            }
+            self.startBroadcast()
+        })
+    }
+
+    private func startBroadcast() {
         self.pcmLock.lock()
         let currentData = self.pcmData
         let currentMessageId = self.currentMessageId
