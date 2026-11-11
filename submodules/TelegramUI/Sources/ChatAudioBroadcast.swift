@@ -426,6 +426,11 @@ public final class ChatAudioBroadcast {
                     pcm.append(data)
                 }
                 starved = 0
+                // Cap the decoded size (~35 minutes of 48 kHz mono 16-bit audio) so that a very long file
+                // cannot exhaust memory.
+                if pcm.count >= 200 * 1024 * 1024 {
+                    finished = true
+                }
             case .waitingForMoreData:
                 starved += 1
                 if starved > 50 {
