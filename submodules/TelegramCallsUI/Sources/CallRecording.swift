@@ -307,15 +307,12 @@ public final class CallRecording {
         guard status == noErr, let fileID = extAudioFile else {
             return nil
         }
-        status = ExtAudioFileSetVirtualFormat(fileID, &inputFormat)
+        // Tell the encoder that the buffer we feed it is linear PCM.
+        // Without this property the data is not encoded correctly.
+        status = ExtAudioFileSetProperty(fileID, kExtAudioFileProperty_ClientDataFormat, UInt32(MemoryLayout<AudioStreamBasicDescription>.size), &inputFormat)
         guard status == noErr else {
             ExtAudioFileDispose(fileID)
             return nil
-        }
-        // Ask the encoder for a high enough bitrate so the recording stays clear.
-        var bitrate: Float64 = 96000
-        withUnsafeMutableBytes(of: &bitrate) { ptr in
-            _ = ExtAudioFileSetProperty(fileID, kExtAudioFileProperty_AudioFileGlobalChannelBitrate, UInt32(MemoryLayout<Float64>.size), ptr.baseAddress!)
         }
 
         let frameCount = pcm.count / 2
