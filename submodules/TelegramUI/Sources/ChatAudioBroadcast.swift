@@ -134,12 +134,19 @@ public final class ChatAudioBroadcast {
             return context.engine.resources.data(resource: resource, waitUntilFetchStatus: true)
         }
         self.prepareDisposable?.dispose()
+        // The pipeline cannot produce an error (NoError), so a completion handler is used to detect the case
+        // where the download status never reaches .Local.
+        var didReceiveData = false
         self.prepareDisposable = pipeline.start(next: { [weak self] resourceData in
+            didReceiveData = true
             guard let self else {
                 return
             }
             self.decodeAndBroadcast(context: context, message: message, file: file, path: resourceData.path)
-        }, error: { [weak self] _ in
+        }, completed: { [weak self] in
+            if didReceiveData {
+                return
+            }
             guard let self else {
                 return
             }
