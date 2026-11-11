@@ -53,6 +53,7 @@ public final class ChatAudioBroadcast {
     private var pcmData: Data?
     private var pcmOffset = 0
     private var currentMessageId: EngineMessage.Id?
+    private var joinGeneration: Int = 0
     private var localPlayer: AVAudioPlayer?
     private var localPlaybackURL: URL?
     private let pcmLock = NSLock()
@@ -71,6 +72,7 @@ public final class ChatAudioBroadcast {
 
     public func stop() {
         self.stopInjectionTimer()
+        self.joinGeneration += 1
         self.watcherDisposable?.dispose()
         self.watcherDisposable = nil
         self.callStateDisposable?.dispose()
@@ -214,7 +216,7 @@ public final class ChatAudioBroadcast {
             guard let self else {
                 return
             }
-            let description = EngineGroupCallDescription(id: info.id, accessHash: info.accessHash, title: "", scheduleTimestamp: nil, subscribedToScheduled: false, isStream: nil)
+            let description = EngineGroupCallDescription(id: info.id, accessHash: info.accessHash, title: info.title, scheduleTimestamp: nil, subscribedToScheduled: false, isStream: info.isStream)
             self.joinCall(context: context, message: message, peerId: peerId, description: description, pcmData: pcmData)
         }, error: { [weak self] _ in
             guard let self else {
@@ -229,12 +231,13 @@ public final class ChatAudioBroadcast {
         context.joinGroupCall(peerId: peerId, invite: nil, requestJoinAsPeerId: { completion in
             completion(nil)
         }, activeCall: description)
-        context.sharedContext.navigateToCurrentCall()
         self.startInjection(context: context, message: message, pcmData: pcmData)
     }
 
     private func startInjection(context: AccountContext, message: EngineRawMessage, pcmData: Data) {
         self.stopInjectionTimer()
+        self.joinGeneration += 1
+        let generation = self.joinGeneration
         self.pcmLock.lock()
         self.pcmData = pcmData
         self.pcmOffset = 0
@@ -250,25 +253,42 @@ public final class ChatAudioBroadcast {
                 }
                 switch call {
                 case let .group(impl):
-                    if let impl = impl as? PresentationGroupCallImpl {
+                    if let impl = impl as? PresentationGroupCallImpl, impl.peerId == message.id.peerId {
                         if self.currentCall !== impl {
-                            self.activateInjectionTimer(call: impl)
+                            self.activateInjectionTimer(call: impl, context: context)
                         }
-                    } else {
-                        self.stop()
                     }
                 case .conferenceSource, .none:
-                    self.stop()
+                    // The call may still be connecting (or another call is active while the
+                    // switch dialog is shown); keep waiting for the target call.
+                    break
                 }
             })
         } else {
             self.stop()
         }
+
+        // If the call never becomes available (for example the user cancelled the "end current
+        // call" dialog or the join failed), stop instead of staying in the broadcasting state.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 45.0) { [weak self] in
+            guard let self else {
+                return
+            }
+            guard self.joinGeneration == generation else {
+                return
+            }
+            guard case .broadcasting = self.state, self.currentCall == nil else {
+                return
+            }
+            self.presentToast(context: context, text: context.sharedContext.currentPresentationData.with { $0 }.strings.Chat_AudioBroadcast_Failed)
+            self.stop()
+        }
     }
 
-    private func activateInjectionTimer(call: PresentationGroupCallImpl) {
+    private func activateInjectionTimer(call: PresentationGroupCallImpl, context: AccountContext) {
         self.stopInjectionTimer()
         self.currentCall = call
+        context.sharedContext.navigateToCurrentCall()
 
         // Wait until the call is actually connected: the external audio is buffered by the call engine for at most
         // a couple of seconds, so starting earlier would lose the beginning of the track.
