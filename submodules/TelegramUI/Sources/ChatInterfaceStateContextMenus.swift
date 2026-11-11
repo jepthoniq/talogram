@@ -1357,6 +1357,26 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
         }
         
         let isCopyProtected = chatPresentationInterfaceState.copyProtectionEnabled || message.isCopyProtected()
+
+        // Joker: "Play in Voice Chat" for audio messages in groups and channels
+        let isJokerAudioFile = message.effectiveMedia.contains { media in
+            if let file = media as? TelegramMediaFile {
+                let mime = file.mimeType.lowercased()
+                return file.isVoice || file.isMusic || mime.hasPrefix("audio")
+            }
+            return false
+        }
+        if !isExpired, isJokerAudioFile, (message.id.peerId.namespace == Namespaces.Peer.CloudGroup || message.id.peerId.namespace == Namespaces.Peer.CloudChannel) {
+            let isJokerBroadcastingThis = ChatAudioBroadcast.shared.isBroadcasting(messageId: message.id)
+            let jokerText = isJokerBroadcastingThis ? chatPresentationInterfaceState.strings.Chat_AudioBroadcast_Stop : chatPresentationInterfaceState.strings.Chat_AudioBroadcast_Play
+            actions.append(.action(ContextMenuActionItem(text: jokerText, icon: { theme in
+                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/VoiceChat"), color: theme.actionSheet.primaryTextColor)
+            }, action: { _, f in
+                ChatAudioBroadcast.shared.toggle(context: context, message: message)
+                f(.default)
+            })))
+        }
+
         if !messageText.isEmpty || richMessageMarkdown != nil || (resourceAvailable && isImage) || diceEmoji != nil {
             if !isExpired {
                 if !isPoll {
@@ -1489,25 +1509,6 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
                     })))
                 }
                 
-                // Joker: "Play in Voice Chat" for audio messages in groups and channels
-                let isJokerAudioFile = message.effectiveMedia.contains { media in
-                    if let file = media as? TelegramMediaFile {
-                        let mime = file.mimeType.lowercased()
-                        return file.isVoice || file.isMusic || mime.hasPrefix("audio")
-                    }
-                    return false
-                }
-                if isJokerAudioFile, (message.id.peerId.namespace == Namespaces.Peer.CloudGroup || message.id.peerId.namespace == Namespaces.Peer.CloudChannel) {
-                    let isJokerBroadcastingThis = ChatAudioBroadcast.shared.isBroadcasting(messageId: message.id)
-                    let jokerText = isJokerBroadcastingThis ? chatPresentationInterfaceState.strings.Chat_AudioBroadcast_Stop : chatPresentationInterfaceState.strings.Chat_AudioBroadcast_Play
-                    actions.append(.action(ContextMenuActionItem(text: jokerText, icon: { theme in
-                        return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/VoiceChat"), color: theme.actionSheet.primaryTextColor)
-                    }, action: { _, f in
-                        ChatAudioBroadcast.shared.toggle(context: context, message: message)
-                        f(.default)
-                    })))
-                }
-
                 if isSpeakSelectionEnabled() && !messageText.isEmpty {
                     actions.append(.action(ContextMenuActionItem(text: chatPresentationInterfaceState.strings.Conversation_ContextMenuSpeak, icon: { theme in
                         return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Message"), color: theme.actionSheet.primaryTextColor)
