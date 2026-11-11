@@ -203,6 +203,7 @@ public final class PrivateCallScreen: OverlayMaskContainerView, AVPictureInPictu
     private let avatarLayer: AvatarLayer
     private let titleView: TextView
     private let backButtonView: BackButtonView
+    public var recordPillView: JokerRecordPillView?
     private var conferenceButtonView: ConferenceButtonView?
     
     /// Where the back button goes in a side strip (iPhone Duo), in this view's coordinates; nil keeps it in the
@@ -329,6 +330,13 @@ public final class PrivateCallScreen: OverlayMaskContainerView, AVPictureInPictu
         }
         
         self.addSubview(self.backButtonView)
+        self.recordPillView = JokerRecordPillView(action: { [weak self] in
+            guard let self else {
+                return
+            }
+            self.recordAction?()
+        })
+        self.addSubview(self.recordPillView!)
         
         (self.layer as? SimpleLayer)?.didEnterHierarchy = { [weak self] in
             guard let self else {
@@ -1004,6 +1012,14 @@ public final class PrivateCallScreen: OverlayMaskContainerView, AVPictureInPictu
         }
         transition.setFrame(view: self.backButtonView, frame: backButtonFrame)
         genericAlphaTransition.setAlpha(view: self.backButtonView, alpha: (currentAreControlsHidden || self.isAnimatedOutToGroupCall) ? 0.0 : 1.0)
+
+        // Joker Mod: local recording button sits exactly next to the back button.
+        if let recordPillView = self.recordPillView {
+            let recordSize = recordPillView.currentPillSize
+            let recordFrame = CGRect(origin: CGPoint(x: backButtonFrame.maxX + 8.0, y: backButtonFrame.midY - recordSize.height * 0.5), size: recordSize)
+            transition.setFrame(view: recordPillView, frame: recordFrame)
+            genericAlphaTransition.setAlpha(view: recordPillView, alpha: (currentAreControlsHidden || self.isAnimatedOutToGroupCall) ? 0.0 : 1.0)
+        }
         
         var isConferencePossible = false
         if case .active = params.state.lifecycleState, params.state.isConferencePossible {

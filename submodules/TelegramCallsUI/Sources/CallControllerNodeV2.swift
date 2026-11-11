@@ -35,7 +35,6 @@ final class CallControllerNodeV2: ViewControllerTracingNode, CallControllerNodeP
     
     private let containerView: UIView
     private let callScreen: PrivateCallScreen
-    private let recordPillView: JokerRecordPillView
     private var callScreenState: PrivateCallScreen.State?
     
     let isReady = Promise<Bool>()
@@ -112,18 +111,11 @@ final class CallControllerNodeV2: ViewControllerTracingNode, CallControllerNodeP
         self.containerView = UIView()
         self.containerView.clipsToBounds = true
         self.callScreen = PrivateCallScreen()
-        self.recordPillView = JokerRecordPillView(action: { [weak call] in
-            guard let call else {
-                return
-            }
-            CallRecording.shared.toggle(accountContext: call.context, call: call)
-        })
 
         super.init()
         
         self.view.addSubview(self.containerView)
         self.containerView.addSubview(self.callScreen)
-        self.containerView.addSubview(self.recordPillView)
         
         // UIKit posts orientation changes only while someone generates them; the camera capturer
         // does so only while the local camera is on, and the remote video must follow the phone
@@ -171,8 +163,15 @@ final class CallControllerNodeV2: ViewControllerTracingNode, CallControllerNodeP
             guard let self else {
                 return
             }
-            
             self.call.toggleIsMuted()
+        }
+        self.callScreen.recordAction = { [weak self] in
+            guard let self else {
+                return
+            }
+            let rawName = self.callScreenState?.name ?? ""
+            let peerName = (rawName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || rawName == " ") ? "" : rawName
+            CallRecording.shared.toggle(accountContext: self.call.context, call: self.call, peerName: peerName)
         }
         self.callScreen.endCallAction = { [weak self] in
             guard let self else {
@@ -255,7 +254,7 @@ final class CallControllerNodeV2: ViewControllerTracingNode, CallControllerNodeP
             guard let self else {
                 return
             }
-            self.recordPillView.setRecording(isRecording)
+            self.callScreen.recordPillView?.setRecording(isRecording)
         })
         
         self.view.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(self.panGesture(_:))))
@@ -844,9 +843,6 @@ final class CallControllerNodeV2: ViewControllerTracingNode, CallControllerNodeP
             }
         })
         transition.updateFrame(view: self.callScreen, frame: CGRect(origin: CGPoint(), size: layout.size))
-
-        let pillFrame = CGRect(origin: CGPoint(x: layout.size.width - layout.safeInsets.right - 88.0 - 12.0, y: layout.safeInsets.top + 4.0), size: CGSize(width: 88.0, height: 40.0))
-        transition.updateFrame(view: self.recordPillView, frame: pillFrame)
         
         if var callScreenState = self.callScreenState {
             if case .terminated = callScreenState.lifecycleState {

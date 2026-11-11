@@ -2369,7 +2369,8 @@ final class VideoChatScreenComponent: Component {
                     }
                     switch currentCall {
                     case let .group(groupCall):
-                        CallRecording.shared.toggle(accountContext: groupCall.accountContext, call: groupCall)
+                        let peerName = self.peer?.compactDisplayTitle ?? ""
+                        CallRecording.shared.toggle(accountContext: groupCall.accountContext, call: groupCall, peerName: peerName)
                     case .conferenceSource:
                         // Conference calls record through the group call UI.
                         break
@@ -2378,7 +2379,8 @@ final class VideoChatScreenComponent: Component {
                 self.recordPillView = recordPillView
                 self.containerView.addSubview(recordPillView)
             }
-            let recordPillFrame = CGRect(origin: CGPoint(x: navigationLeftButtonFrame.maxX + 8.0, y: navigationLeftButtonFrame.minY), size: CGSize(width: 88.0, height: 40.0))
+            let recordPillSize = recordPillView.currentPillSize
+            let recordPillFrame = CGRect(origin: CGPoint(x: navigationLeftButtonFrame.maxX + 8.0, y: navigationLeftButtonFrame.minY), size: recordPillSize)
             recordPillView.frame = recordPillFrame
             recordPillView.alpha = self.isAnimatedOutFromPrivateCall ? 0.0 : 1.0
             

@@ -1,4 +1,5 @@
 import Foundation
+import AudioToolbox
 import AVFoundation
 import TelegramCore
 import SwiftSignalKit
@@ -22,6 +23,7 @@ public final class CallRecording {
     }
 
     private var currentState: Bool = false
+    private var currentPeerName: String = ""
 
     public var isRecording: Bool {
         return self.currentState
@@ -44,26 +46,27 @@ public final class CallRecording {
     private init() {
     }
 
-    public func toggle(accountContext: AccountContext, call: PresentationCall) {
+    public func toggle(accountContext: AccountContext, call: PresentationCall, peerName: String) {
         if self.currentState {
             self.stop(accountContext: accountContext, clearHandler: { handler in call.setJokerAudioRecordingHandler(handler) })
         } else {
-            self.start(accountContext: accountContext, setHandler: { handler in call.setJokerAudioRecordingHandler(handler) })
+            self.start(accountContext: accountContext, peerName: peerName, setHandler: { handler in call.setJokerAudioRecordingHandler(handler) })
         }
     }
 
-    public func toggle(accountContext: AccountContext, call: PresentationGroupCall) {
+    public func toggle(accountContext: AccountContext, call: PresentationGroupCall, peerName: String) {
         if self.currentState {
             self.stop(accountContext: accountContext, clearHandler: { handler in call.setJokerAudioRecordingHandler(handler) })
         } else {
-            self.start(accountContext: accountContext, setHandler: { handler in call.setJokerAudioRecordingHandler(handler) })
+            self.start(accountContext: accountContext, peerName: peerName, setHandler: { handler in call.setJokerAudioRecordingHandler(handler) })
         }
     }
 
-    private func start(accountContext: AccountContext, setHandler: @escaping (AudioRecordingHandler?) -> Void) {
+    private func start(accountContext: AccountContext, peerName: String, setHandler: @escaping (AudioRecordingHandler?) -> Void) {
         guard !self.currentState else {
             return
         }
+        self.currentPeerName = peerName
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("joker-call-recording-\(UUID().uuidString)", isDirectory: true)
         var micFile: FileHandle?
         var otherFile: FileHandle?
@@ -148,11 +151,11 @@ public final class CallRecording {
 
             var sentSummary: [String] = []
             if let m4aURL = Self.encodeToM4A(pcm: merged) {
-                Self.sendRecording(context: accountContext, fileURL: m4aURL, duration: duration, fileName: Self.recordingFileName(extension: "m4a"), mimeType: "audio/x-m4a")
+                Self.sendRecording(context: accountContext, fileURL: m4aURL, duration: duration, fileName: Self.recordingFileName(extension: "m4a", peerName: self.currentPeerName), mimeType: "audio/x-m4a")
                 sentSummary.append("M4A")
             }
             if let wavURL = Self.writeMergedWAV(pcm: merged) {
-                Self.sendRecording(context: accountContext, fileURL: wavURL, duration: duration, fileName: Self.recordingFileName(extension: "wav"), mimeType: "audio/x-wav")
+                Self.sendRecording(context: accountContext, fileURL: wavURL, duration: duration, fileName: Self.recordingFileName(extension: "wav", peerName: self.currentPeerName), mimeType: "audio/x-wav")
                 sentSummary.append("WAV")
             }
             DispatchQueue.main.async {
@@ -269,85 +272,69 @@ public final class CallRecording {
         }
     }
 
-    private static func encodeToM4A(pcm: Data, sampleRate: Double = 48000.0) -> URL? {
+    private static func encodeToM4A(pcm: Data, sampleRate: Float64 = 48000.0) -> URL? {
         guard !pcm.isEmpty else {
             return nil
         }
-        var floats = [Float]()
-        floats.reserveCapacity(pcm.count / 2)
-        pcm.withUnsafeBytes { raw in
-            let samples = raw.bindMemory(to: Int16.self)
-            for sample in samples {
-                floats.append(Float(sample) / 32768.0)
+        let outURL = FileManager.default.temporaryDirectory.appendingPathComponent("JokerCallRecording-\(UUID().uuidString).m4a")
+
+        // File format: AAC in an M4A container.
+        var fileFormat = AudioStreamBasicDescription(
+            mSampleRate: sampleRate,
+            mFormatID: kAudioFormatMPEG4AAC,
+            mFormatFlags: 0,
+            mBytesPerPacket: 0,
+            mFramesPerPacket: 1024,
+            mBytesPerFrame: 0,
+            mChannelsPerFrame: 1,
+            mBitsPerChannel: 0,
+            mReserved: 0)
+        // Format of the PCM data we feed to the encoder.
+        var inputFormat = AudioStreamBasicDescription(
+            mSampleRate: sampleRate,
+            mFormatID: kAudioFormatLinearPCM,
+            mFormatFlags: kLinearPCMFormatFlagIsSignedInteger | kLinearPCMFormatFlagIsPacked | kAudioFormatFlagsNativeEndian,
+            mBytesPerPacket: 2,
+            mFramesPerPacket: 1,
+            mBytesPerFrame: 2,
+            mChannelsPerFrame: 1,
+            mBitsPerChannel: 16,
+            mReserved: 0)
+
+        var extAudioFile: ExtAudioFileRef?
+        var status = ExtAudioFileCreateWithURL(outURL as CFURL, kAudioFileM4AType, &fileFormat, nil, 0, &extAudioFile)
+        guard status == noErr, let fileID = extAudioFile else {
+            return nil
+        }
+        status = ExtAudioFileSetVirtualFormat(fileID, &inputFormat)
+        guard status == noErr else {
+            ExtAudioFileDispose(fileID)
+            return nil
+        }
+        // Ask the encoder for a high enough bitrate so the recording stays clear.
+        var bitrate: Float64 = 96000
+        withUnsafeMutableBytes(of: &bitrate) { ptr in
+            _ = ExtAudioFileSetProperty(fileID, kExtAudioFileProperty_AudioFileGlobalChannelBitrate, UInt32(MemoryLayout<Float64>.size), ptr.baseAddress!)
+        }
+
+        let frameCount = pcm.count / 2
+        var wroteAny = false
+        pcm.withUnsafeBytes { (raw: UnsafeRawBufferPointer) -> Void in
+            let base = raw.baseAddress!
+            var offset = 0
+            while offset < frameCount {
+                let count = min(4096, frameCount - offset)
+                let pointer = base.advanced(by: offset * 2)
+                let writeStatus = ExtAudioFileWrite(fileID, UInt32(count), pointer)
+                if writeStatus == noErr {
+                    wroteAny = true
+                }
+                offset += count
             }
         }
 
-        let inputFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: sampleRate, channels: 1, interleaved: false)!
-        let outputSettings: [String: Any] = [
-            AVFormatIDKey: kAudioFormatMPEG4AAC,
-            AVSampleRateKey: sampleRate,
-            AVNumberOfChannelsKey: 1,
-            AVEncoderBitRateKey: 96000,
-            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
-        ]
-        let outURL = FileManager.default.temporaryDirectory.appendingPathComponent("JokerCallRecording-\(UUID().uuidString).m4a")
-        do {
-            let outFile = try AVAudioFile(forWriting: outURL, settings: outputSettings, commonFormat: .pcmFormatFloat32, interleaved: false)
-            guard let converter = AVAudioConverter(from: inputFormat, to: outFile.processingFormat) else {
-                return nil
-            }
-            let chunkFrames = 4096
-            var position = 0
-            while position < floats.count {
-                let frameCount = AVAudioFrameCount(min(chunkFrames, floats.count - position))
-                guard let inBuffer = AVAudioPCMBuffer(pcmFormat: inputFormat, frameCapacity: AVAudioFrameCount(chunkFrames)) else {
-                    return nil
-                }
-                inBuffer.frameLength = frameCount
-                inBuffer.floatChannelData![0].update(from: &floats[position], count: Int(frameCount))
-                guard let outBuffer = AVAudioPCMBuffer(pcmFormat: outFile.processingFormat, frameCapacity: AVAudioFrameCount(chunkFrames + 32)) else {
-                    return nil
-                }
-                var error: NSError?
-                var supplied = false
-                let status = converter.convert(to: outBuffer, error: &error) { inPacketCount, outStatus in
-                    if supplied {
-                        outStatus.pointee = .noDataNow
-                        return nil
-                    }
-                    supplied = true
-                    outStatus.pointee = .haveData
-                    return inBuffer
-                }
-                if status == .error || error != nil {
-                    return nil
-                }
-                try outFile.write(from: outBuffer)
-                position += Int(frameCount)
-            }
-            // Flush the encoder.
-            let emptyIn = AVAudioPCMBuffer(pcmFormat: inputFormat, frameCapacity: 1)!
-            emptyIn.frameLength = 0
-            if let outBuffer = AVAudioPCMBuffer(pcmFormat: outFile.processingFormat, frameCapacity: 256) {
-                var error: NSError?
-                var supplied = false
-                let status = converter.convert(to: outBuffer, error: &error) { inPacketCount, outStatus in
-                    if supplied {
-                        outStatus.pointee = .endOfStream
-                        return nil
-                    }
-                    supplied = true
-                    outStatus.pointee = .endOfStream
-                    return emptyIn
-                }
-                if status != .error, outBuffer.frameLength > 0 {
-                    try? outFile.write(from: outBuffer)
-                }
-            }
-            return outURL
-        } catch {
-            return nil
-        }
+        ExtAudioFileDispose(fileID)
+        return wroteAny ? outURL : nil
     }
 
     private static func writeMergedWAV(pcm: Data) -> URL? {
@@ -382,10 +369,21 @@ public final class CallRecording {
         let _ = enqueueMessages(account: context.account, peerId: context.account.peerId, messages: [message]).start()
     }
 
-    private static func recordingFileName(extension ext: String) -> String {
+    private static func recordingFileName(extension ext: String, peerName: String) -> String {
+        let sanitized = peerName
+            .replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: "\\", with: "-")
+            .replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = String(sanitized.prefix(48))
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH.mm.ss"
-        return "Call Recording \(formatter.string(from: Date())).\(ext)"
+        let date = formatter.string(from: Date())
+        if trimmed.isEmpty {
+            return "تسجيل \(date).\(ext)"
+        } else {
+            return "تسجيل \(trimmed) \(date).\(ext)"
+        }
     }
 
     private func presentToast(context: AccountContext, text: String) {

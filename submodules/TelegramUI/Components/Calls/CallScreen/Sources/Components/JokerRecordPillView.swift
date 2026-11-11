@@ -2,10 +2,10 @@ import Foundation
 import UIKit
 import Display
 
-// Joker Mod: a floating "recording" pill for call screens (private 1:1, group chats and channels).
-// Idle: a red circle button. Recording: expands into a red capsule with a white stop square and the
+// Joker Mod: a floating "recording" button for call screens (private 1:1, group chats and channels).
+// Idle: a red circle with a white dot. Tap fades in a red capsule with a white stop square and the
 // elapsed time (e.g. "0:07"), so the user knows the call is being recorded.
-final class JokerRecordPillView: UIView {
+final class JokerRecordPillView: UIButton {
     private let action: () -> Void
 
     private let iconView = UIImageView()
@@ -15,32 +15,42 @@ final class JokerRecordPillView: UIView {
     private var startedAt: Date?
     private var isRecording = false
 
-    private let capsuleHeight: CGFloat = 40.0
-    private let pillWidth: CGFloat = 88.0
-    private let labelX: CGFloat = 44.0
-    private let labelWidth: CGFloat = 42.0
+    private let circleSize: CGFloat = 40.0
+    private let height: CGFloat = 40.0
+    private let capsuleWidth: CGFloat = 88.0
+    private let labelFrame: CGRect = CGRect(x: 44.0, y: 0.0, width: 42.0, height: 40.0)
+
+    /// The current size of the pill, depending on whether it is recording.
+    public var currentPillSize: CGSize {
+        return CGSize(width: self.isRecording ? self.capsuleWidth : self.circleSize, height: self.height)
+    }
+
+    public var isRecordingState: Bool {
+        return self.isRecording
+    }
 
     init(action: @escaping () -> Void) {
         self.action = action
-        super.init(frame: CGRect(origin: .zero, size: CGSize(width: 88.0, height: 40.0)))
+        super.init(frame: CGRect(origin: .zero, size: CGSize(width: 40.0, height: 40.0)))
+        self.addTarget(self, action: #selector(self.handleTap), for: .touchUpInside)
 
         self.addSubview(self.backgroundView)
         self.backgroundView.clipsToBounds = true
-        self.backgroundView.layer.cornerRadius = self.capsuleHeight / 2.0
+        self.backgroundView.layer.cornerRadius = self.circleSize / 2.0
         self.backgroundView.backgroundColor = UIColor(rgb: 0xFF3B30)
+        self.backgroundView.isUserInteractionEnabled = false
 
         self.iconView.contentMode = .center
+        self.iconView.isUserInteractionEnabled = false
         self.backgroundView.addSubview(self.iconView)
 
         self.label.textColor = .white
         self.label.font = UIFont.monospacedDigitSystemFont(ofSize: 15.0, weight: .semibold)
         self.label.isHidden = true
+        self.label.isUserInteractionEnabled = false
         self.backgroundView.addSubview(self.label)
 
-        let tap = UITapGestureRecognizer(target: self, action: #selector(self.handleTap))
-        self.addGestureRecognizer(tap)
         self.isUserInteractionEnabled = true
-
         self.updateAppearance()
     }
 
@@ -63,12 +73,19 @@ final class JokerRecordPillView: UIView {
             self.timer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true, block: { [weak self] _ in
                 self?.updateAppearance()
             })
+            UIView.animate(withDuration: 0.35, delay: 0.0, usingSpringWithDamping: 0.7, initialSpringVelocity: 4.0, options: [.allowUserInteraction], animations: {
+                self.frame.size = CGSize(width: self.capsuleWidth, height: self.height)
+                self.updateAppearance()
+            })
         } else {
             self.startedAt = nil
             self.timer?.invalidate()
             self.timer = nil
+            UIView.animate(withDuration: 0.3, animations: {
+                self.frame.size = CGSize(width: self.circleSize, height: self.height)
+                self.updateAppearance()
+            })
         }
-        self.updateAppearance()
     }
 
     private var elapsedText: String {
@@ -104,9 +121,11 @@ final class JokerRecordPillView: UIView {
         if self.isRecording {
             self.label.text = self.elapsedText
             self.label.isHidden = false
+            self.backgroundView.layer.cornerRadius = self.height / 2.0
         } else {
             self.label.text = ""
             self.label.isHidden = true
+            self.backgroundView.layer.cornerRadius = self.circleSize / 2.0
         }
     }
 
@@ -114,7 +133,7 @@ final class JokerRecordPillView: UIView {
         super.layoutSubviews()
 
         self.backgroundView.frame = self.bounds
-        self.iconView.frame = CGRect(origin: .zero, size: CGSize(width: self.capsuleHeight, height: self.capsuleHeight))
-        self.label.frame = CGRect(x: self.labelX, y: 0.0, width: self.labelWidth, height: self.capsuleHeight)
+        self.iconView.frame = CGRect(origin: .zero, size: CGSize(width: self.height, height: self.height))
+        self.label.frame = self.labelFrame
     }
 }
