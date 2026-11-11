@@ -845,8 +845,7 @@ final class CallControllerNodeV2: ViewControllerTracingNode, CallControllerNodeP
         })
         transition.updateFrame(view: self.callScreen, frame: CGRect(origin: CGPoint(), size: layout.size))
 
-        let pillSize = self.recordPillView.intrinsicContentSize
-        let pillFrame = CGRect(origin: CGPoint(x: layout.size.width - layout.insets.right - pillSize.width - 12.0, y: layout.insets.top + 4.0), size: pillSize)
+        let pillFrame = CGRect(origin: CGPoint(x: layout.size.width - layout.safeInsets.right - 88.0 - 12.0, y: layout.safeInsets.top + 4.0), size: CGSize(width: 88.0, height: 40.0))
         transition.updateFrame(view: self.recordPillView, frame: pillFrame)
         
         if var callScreenState = self.callScreenState {

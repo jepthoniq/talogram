@@ -3,8 +3,8 @@ import UIKit
 import Display
 
 // Joker Mod: a floating "recording" pill for call screens (private 1:1, group chats and channels).
-// Idle: a small red circle button. Recording: expands into a red capsule showing a white stop
-// square and the elapsed time (e.g. "0:07"), so the user knows the call is being recorded.
+// Idle: a red circle button. Recording: expands into a red capsule with a white stop square and the
+// elapsed time (e.g. "0:07"), so the user knows the call is being recorded.
 final class JokerRecordPillView: UIView {
     private let action: () -> Void
 
@@ -16,15 +16,18 @@ final class JokerRecordPillView: UIView {
     private var isRecording = false
 
     private let capsuleHeight: CGFloat = 40.0
-    private let circleSize: CGFloat = 40.0
+    private let pillWidth: CGFloat = 88.0
+    private let labelX: CGFloat = 44.0
+    private let labelWidth: CGFloat = 42.0
 
     init(action: @escaping () -> Void) {
         self.action = action
-        super.init(frame: .zero)
+        super.init(frame: CGRect(origin: .zero, size: CGSize(width: 88.0, height: 40.0)))
 
         self.addSubview(self.backgroundView)
         self.backgroundView.clipsToBounds = true
-        self.backgroundView.layer.cornerRadius = self.circleSize / 2.0
+        self.backgroundView.layer.cornerRadius = self.capsuleHeight / 2.0
+        self.backgroundView.backgroundColor = UIColor(rgb: 0xFF3B30)
 
         self.iconView.contentMode = .center
         self.backgroundView.addSubview(self.iconView)
@@ -36,8 +39,6 @@ final class JokerRecordPillView: UIView {
 
         let tap = UITapGestureRecognizer(target: self, action: #selector(self.handleTap))
         self.addGestureRecognizer(tap)
-
-        self.backgroundColor = .clear
         self.isUserInteractionEnabled = true
 
         self.updateAppearance()
@@ -58,6 +59,7 @@ final class JokerRecordPillView: UIView {
         self.isRecording = recording
         if recording {
             self.startedAt = Date()
+            self.timer?.invalidate()
             self.timer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true, block: { [weak self] _ in
                 self?.updateAppearance()
             })
@@ -67,7 +69,6 @@ final class JokerRecordPillView: UIView {
             self.timer = nil
         }
         self.updateAppearance()
-        self.setNeedsLayout()
     }
 
     private var elapsedText: String {
@@ -90,7 +91,7 @@ final class JokerRecordPillView: UIView {
                 let frame = CGRect(origin: CGPoint(x: (size.width - square.width) / 2.0, y: (size.height - square.height) / 2.0), size: square)
                 let path = UIBezierPath(roundedRect: frame, cornerRadius: 3.5)
                 context.addPath(path.cgPath)
-                context.fillPath(using: .normal)
+                context.fillPath(using: .winding)
             } else {
                 context.setFillColor(UIColor.white.cgColor)
                 context.fillEllipse(in: CGRect(x: 12.0, y: 12.0, width: 16.0, height: 16.0))
@@ -103,13 +104,10 @@ final class JokerRecordPillView: UIView {
         if self.isRecording {
             self.label.text = self.elapsedText
             self.label.isHidden = false
-            self.backgroundView.layer.cornerRadius = self.capsuleHeight / 2.0
         } else {
             self.label.text = ""
             self.label.isHidden = true
-            self.backgroundView.layer.cornerRadius = self.circleSize / 2.0
         }
-        self.backgroundView.backgroundColor = UIColor(rgb: 0xFF3B30)
     }
 
     override func layoutSubviews() {
@@ -117,22 +115,6 @@ final class JokerRecordPillView: UIView {
 
         self.backgroundView.frame = self.bounds
         self.iconView.frame = CGRect(origin: .zero, size: CGSize(width: self.capsuleHeight, height: self.capsuleHeight))
-        let labelWidth: CGFloat = 42.0
-        let labelX = self.capsuleHeight + 2.0
-        self.label.frame = CGRect(x: labelX, y: 0.0, width: labelWidth, height: self.capsuleHeight)
-    }
-
-    override var intrinsicContentSize: CGSize {
-        if self.isRecording {
-            return CGSize(width: self.capsuleHeight + 2.0 + 42.0, height: self.capsuleHeight)
-        } else {
-            return CGSize(width: self.circleSize, height: self.circleSize)
-        }
-    }
-
-    override var bounds: CGRect {
-        didSet {
-            self.invalidateIntrinsicContentSize()
-        }
+        self.label.frame = CGRect(x: self.labelX, y: 0.0, width: self.labelWidth, height: self.capsuleHeight)
     }
 }

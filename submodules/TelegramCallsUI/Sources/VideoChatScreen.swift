@@ -2378,8 +2378,7 @@ final class VideoChatScreenComponent: Component {
                 self.recordPillView = recordPillView
                 self.containerView.addSubview(recordPillView)
             }
-            let recordPillSize = recordPillView.intrinsicContentSize
-            let recordPillFrame = CGRect(origin: CGPoint(x: navigationLeftButtonFrame.maxX + 8.0, y: navigationLeftButtonFrame.minY + floor((navigationLeftButtonFrame.height - recordPillSize.height) * 0.5)), size: recordPillSize)
+            let recordPillFrame = CGRect(origin: CGPoint(x: navigationLeftButtonFrame.maxX + 8.0, y: navigationLeftButtonFrame.minY), size: CGSize(width: 88.0, height: 40.0))
             recordPillView.frame = recordPillFrame
             recordPillView.alpha = self.isAnimatedOutFromPrivateCall ? 0.0 : 1.0
             
@@ -2501,7 +2500,7 @@ final class VideoChatScreenComponent: Component {
                 // title keeps clear of it on both sides; a left-aligned one (the wide layout) runs up to those buttons.
                 if isLandscape {
                     let titleMaxX = (navigationSidebarButtonFrame ?? navigationRightButtonRowFrame).minX - 8.0
-                    maxTitleWidth = min(maxTitleWidth, max(1.0, titleMaxX - (navigationLeftButtonFrame.maxX + 56.0)))
+                    maxTitleWidth = min(maxTitleWidth, max(1.0, titleMaxX - (navigationLeftButtonFrame.maxX + 100.0)))
                 } else {
                     maxTitleWidth -= environment.navigationBarTrailingButtonsInset * 2.0
                 }
@@ -2554,7 +2553,7 @@ final class VideoChatScreenComponent: Component {
             )
             var titleFrame = CGRect(origin: CGPoint(x: 0.0, y: topInset + floor((navigationBarHeight - titleSize.height) * 0.5)), size: titleSize)
             if isLandscape {
-                titleFrame.origin.x = navigationLeftButtonFrame.maxX + 56.0
+                titleFrame.origin.x = navigationLeftButtonFrame.maxX + 100.0
             } else {
                 titleFrame.origin.x = leftInset + floor((availableSize.width - leftInset - rightInset - titleSize.width) * 0.5)
             }

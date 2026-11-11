@@ -260,7 +260,7 @@ public final class CallRecording {
                         sample += Int32(otherSamples[i])
                     }
                     sample = max(-32768, min(32767, sample))
-                    var value16 = Int16(truncatingIfNeeded: sample)
+                    let value16 = Int16(truncatingIfNeeded: sample)
                     var value = value16.littleEndian
                     withUnsafeBytes(of: &value) { result.append(contentsOf: $0) }
                 }
