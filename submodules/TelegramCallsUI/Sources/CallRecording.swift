@@ -128,6 +128,7 @@ public final class CallRecording {
         }
         let micURL = directory.appendingPathComponent("mic.wav")
         let otherURL = directory.appendingPathComponent("other.wav")
+        let peerName = self.currentPeerName
         // Finalize the WAV headers with the real sizes.
         let tracks: [(URL, FileHandle?, UInt64)] = [(micURL, micFile, micBytes), (otherURL, otherFile, otherBytes)]
         for (_, file, bytes) in tracks {
@@ -151,11 +152,11 @@ public final class CallRecording {
 
             var sentSummary: [String] = []
             if let m4aURL = Self.encodeToM4A(pcm: merged) {
-                Self.sendRecording(context: accountContext, fileURL: m4aURL, duration: duration, fileName: Self.recordingFileName(extension: "m4a", peerName: self.currentPeerName), mimeType: "audio/x-m4a")
+                Self.sendRecording(context: accountContext, fileURL: m4aURL, duration: duration, fileName: Self.recordingFileName(extension: "m4a", peerName: peerName), mimeType: "audio/x-m4a")
                 sentSummary.append("M4A")
             }
             if let wavURL = Self.writeMergedWAV(pcm: merged) {
-                Self.sendRecording(context: accountContext, fileURL: wavURL, duration: duration, fileName: Self.recordingFileName(extension: "wav", peerName: self.currentPeerName), mimeType: "audio/x-wav")
+                Self.sendRecording(context: accountContext, fileURL: wavURL, duration: duration, fileName: Self.recordingFileName(extension: "wav", peerName: peerName), mimeType: "audio/x-wav")
                 sentSummary.append("WAV")
             }
             DispatchQueue.main.async {

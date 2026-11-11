@@ -62,7 +62,7 @@ public final class JokerRecordPillView: UIButton {
         self.action()
     }
 
-    func setRecording(_ recording: Bool) {
+    public func setRecording(_ recording: Bool) {
         if self.isRecording == recording {
             return
         }
