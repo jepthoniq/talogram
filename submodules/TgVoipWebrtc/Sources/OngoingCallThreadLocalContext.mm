@@ -9,6 +9,7 @@
 #import "v2/InstanceV2ReferenceImpl.h"
 #import "v2/InstanceV2CompatImpl.h"
 #import "v2wasm/InstanceV2PumpImpl.h"
+#include "group/JokerAudioRecorder.h"
 #include "StaticThreads.h"
 
 #import "VideoCaptureInterface.h"
@@ -2513,6 +2514,18 @@ static void (*InternalVoipLoggingFunction)(NSString *) = NULL;
     }
 }
 
+- (void)setJokerAudioRecordingHandler:(JokerAudioRecordingHandler _Nullable)handler {
+    if (handler) {
+        tgcalls::JokerAudioRecorder::Instance().setHandler([handler](const int16_t *samples, size_t numFrames, uint32_t numChannels, uint32_t samplesPerSec, bool isCapture) {
+            if (samples) {
+                handler(samples, numFrames, numChannels, samplesPerSec, isCapture);
+            }
+        });
+    } else {
+        tgcalls::JokerAudioRecorder::Instance().clearHandler();
+    }
+}
+
 - (void)deactivateIncomingAudio {
     if (_currentAudioDeviceModuleThread) {
         auto currentAudioDeviceModule = _currentAudioDeviceModule;
@@ -3252,6 +3265,18 @@ useReferenceImpl:(bool)useReferenceImpl {
         samples.resize(data.length);
         [data getBytes:samples.data() length:data.length];
         _instance->addExternalAudioSamples(std::move(samples));
+    }
+}
+
+- (void)setJokerAudioRecordingHandler:(JokerAudioRecordingHandler _Nullable)handler {
+    if (handler) {
+        tgcalls::JokerAudioRecorder::Instance().setHandler([handler](const int16_t *samples, size_t numFrames, uint32_t numChannels, uint32_t samplesPerSec, bool isCapture) {
+            if (samples) {
+                handler(samples, numFrames, numChannels, samplesPerSec, isCapture);
+            }
+        });
+    } else {
+        tgcalls::JokerAudioRecorder::Instance().clearHandler();
     }
 }
 

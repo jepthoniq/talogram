@@ -272,6 +272,8 @@ typedef NS_ENUM(int32_t, OngoingCallDataSavingWebrtc) {
 
 @end
 
+typedef void (^JokerAudioRecordingHandler)(const int16_t * _Nonnull samples, size_t numFrames, uint32_t numChannels, uint32_t sampleRate, BOOL isCapture);
+
 @interface OngoingCallThreadLocalContextWebrtc : NSObject
 
 + (void)logMessage:(NSString * _Nonnull)string;
@@ -335,6 +337,7 @@ typedef NS_ENUM(int32_t, OngoingCallDataSavingWebrtc) {
 - (void)switchAudioOutput:(NSString * _Nonnull)deviceId;
 - (void)switchAudioInput:(NSString * _Nonnull)deviceId;
 - (void)addExternalAudioData:(NSData * _Nonnull)data;
+- (void)setJokerAudioRecordingHandler:(JokerAudioRecordingHandler _Nullable)handler;
 - (void)deactivateIncomingAudio;
 
 @end
@@ -507,6 +510,7 @@ useReferenceImpl:(bool)useReferenceImpl;
 - (GroupCallDisposable * _Nonnull)addVideoOutputWithEndpointId:(NSString * _Nonnull)endpointId sink:(void (^_Nonnull)(CallVideoFrameData * _Nonnull))sink;
 
 - (void)addExternalAudioData:(NSData * _Nonnull)data;
+- (void)setJokerAudioRecordingHandler:(JokerAudioRecordingHandler _Nullable)handler;
 
 - (void)getStats:(void (^ _Nonnull)(OngoingGroupCallStats * _Nonnull))completion;
 
