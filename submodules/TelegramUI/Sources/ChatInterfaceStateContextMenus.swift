@@ -1501,7 +1501,7 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
                     let isJokerBroadcastingThis = ChatAudioBroadcast.shared.isBroadcasting(messageId: message.id)
                     let jokerText = isJokerBroadcastingThis ? chatPresentationInterfaceState.strings.Chat_AudioBroadcast_Stop : chatPresentationInterfaceState.strings.Chat_AudioBroadcast_Play
                     actions.append(.action(ContextMenuActionItem(text: jokerText, icon: { theme in
-                        return generateTintedImage(image: UIImage(bundleImageName: "Chat/Title Panels/VoiceChat"), color: theme.actionSheet.primaryTextColor)
+                        return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/VoiceChat"), color: theme.actionSheet.primaryTextColor)
                     }, action: { _, f in
                         ChatAudioBroadcast.shared.toggle(context: context, message: message)
                         f(.default)
