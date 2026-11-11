@@ -251,6 +251,7 @@ final class VideoChatScreenComponent: Component {
         
         let title = ComponentView<Empty>()
         let navigationLeftButton = ComponentView<Empty>()
+        let navigationRecordButton = ComponentView<Empty>()
         let navigationRightButton = ComponentView<Empty>()
         var navigationSidebarButton: ComponentView<Empty>?
         var encryptionKeyBackground: ComponentView<Empty>?
@@ -297,6 +298,8 @@ final class VideoChatScreenComponent: Component {
         
         var reconnectedAsEventsDisposable: Disposable?
         var memberEventsDisposable: Disposable?
+        var jokerAudioRecordingDisposable: Disposable?
+        var isJokerRecording: Bool = false
         
         var currentCall: VideoChatCall?
         var appliedCurrentCall: VideoChatCall?
@@ -384,6 +387,7 @@ final class VideoChatScreenComponent: Component {
             self.applicationStateDisposable?.dispose()
             self.reconnectedAsEventsDisposable?.dispose()
             self.memberEventsDisposable?.dispose()
+            self.jokerAudioRecordingDisposable?.dispose()
             self.displayAsPeersDisposable?.dispose()
             self.audioOutputStateDisposable?.dispose()
             self.inviteLinksDisposable?.dispose()
@@ -1510,6 +1514,19 @@ final class VideoChatScreenComponent: Component {
             self.currentCall = call
             if self.appliedCurrentCall != call {
                 self.appliedCurrentCall = call
+
+                // Joker Mod: keep the UI in sync with the local call recorder.
+                self.jokerAudioRecordingDisposable?.dispose()
+                self.jokerAudioRecordingDisposable = (CallRecording.shared.stateSignal
+                |> deliverOnMainQueue).start(next: { [weak self] isRecording in
+                    guard let self else {
+                        return
+                    }
+                    if self.isJokerRecording != isRecording {
+                        self.isJokerRecording = isRecording
+                        self.state?.updated(transition: .immediate)
+                    }
+                })
                 
                 switch call {
                 case let .group(groupCall):
@@ -2331,6 +2348,56 @@ final class VideoChatScreenComponent: Component {
                 transition.setFrame(view: navigationLeftButtonView, frame: navigationLeftButtonFrame)
                 alphaTransition.setAlpha(view: navigationLeftButtonView, alpha: self.isAnimatedOutFromPrivateCall ? 0.0 : 1.0)
             }
+
+            // Joker Mod: local call recording button.
+            let recordIcon = generateImage(CGSize(width: 40.0, height: 40.0), opaque: false, rotatedContext: { size, context in
+                let bounds = CGRect(origin: .zero, size: size).insetBy(dx: 2.0, dy: 2.0)
+                context.clear(bounds)
+                context.setFillColor(UIColor(rgb: 0xFF3B30).cgColor)
+                context.fillEllipse(in: bounds)
+                context.setFillColor(UIColor.white.cgColor)
+                if self.isJokerRecording {
+                    context.fill(CGRect(origin: CGPoint(x: 12.0, y: 12.0), size: CGSize(width: 16.0, height: 16.0)))
+                } else {
+                    context.fillEllipse(in: bounds.insetBy(dx: 11.0, dy: 11.0))
+                }
+            })
+            let navigationRecordButtonSize = self.navigationRecordButton.update(
+                transition: .immediate,
+                component: AnyComponent(PlainButtonComponent(
+                    content: AnyComponent(Image(
+                        image: recordIcon,
+                        contentMode: .center
+                    )),
+                    background: AnyComponent(
+                        GlassBackgroundComponent(size: CGSize(width: navigationButtonDiameter, height: navigationButtonDiameter), cornerRadius: navigationButtonDiameter * 0.5, isDark: true, tintColor: .init(kind: .custom(style: .default, color: panelColor)))
+                    ),
+                    effectAlignment: .center,
+                    minSize: CGSize(width: navigationButtonDiameter, height: navigationButtonDiameter),
+                    action: { [weak self] in
+                        guard let self, let currentCall = self.currentCall else {
+                            return
+                        }
+                        switch currentCall {
+                        case let .group(groupCall):
+                            CallRecording.shared.toggle(accountContext: groupCall.accountContext, call: groupCall)
+                        case .conferenceSource:
+                            // Conference calls record through the group call UI.
+                            break
+                        }
+                    }
+                )),
+                environment: {},
+                containerSize: CGSize(width: navigationButtonDiameter, height: navigationButtonDiameter)
+            )
+            let navigationRecordButtonFrame = CGRect(origin: CGPoint(x: navigationLeftButtonFrame.maxX + 8.0, y: navigationLeftButtonFrame.minY), size: navigationRecordButtonSize)
+            if let navigationRecordButtonView = self.navigationRecordButton.view {
+                if navigationRecordButtonView.superview == nil {
+                    self.containerView.addSubview(navigationRecordButtonView)
+                }
+                transition.setFrame(view: navigationRecordButtonView, frame: navigationRecordButtonFrame)
+                alphaTransition.setAlpha(view: navigationRecordButtonView, alpha: self.isAnimatedOutFromPrivateCall ? 0.0 : 1.0)
+            }
             
             // iPhone Duo, unfolded portrait: the status island is wider than the side controls column's inset, so the
             // close button keeps the island's inset from the edge instead of adding it to the column's.
@@ -2450,7 +2517,7 @@ final class VideoChatScreenComponent: Component {
                 // title keeps clear of it on both sides; a left-aligned one (the wide layout) runs up to those buttons.
                 if isLandscape {
                     let titleMaxX = (navigationSidebarButtonFrame ?? navigationRightButtonRowFrame).minX - 8.0
-                    maxTitleWidth = min(maxTitleWidth, max(1.0, titleMaxX - (navigationLeftButtonFrame.maxX + 20.0)))
+                    maxTitleWidth = min(maxTitleWidth, max(1.0, titleMaxX - (navigationRecordButtonFrame.maxX + 12.0)))
                 } else {
                     maxTitleWidth -= environment.navigationBarTrailingButtonsInset * 2.0
                 }
@@ -2503,7 +2570,7 @@ final class VideoChatScreenComponent: Component {
             )
             var titleFrame = CGRect(origin: CGPoint(x: 0.0, y: topInset + floor((navigationBarHeight - titleSize.height) * 0.5)), size: titleSize)
             if isLandscape {
-                titleFrame.origin.x = navigationLeftButtonFrame.maxX + 20.0
+                titleFrame.origin.x = navigationRecordButtonFrame.maxX + 12.0
             } else {
                 titleFrame.origin.x = leftInset + floor((availableSize.width - leftInset - rightInset - titleSize.width) * 0.5)
             }

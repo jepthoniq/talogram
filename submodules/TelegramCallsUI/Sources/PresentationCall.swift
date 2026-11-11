@@ -1577,6 +1577,13 @@ public final class PresentationCallImpl: PresentationCall {
             self.ongoingContext?.setIsMuted(self.isMutedValue)
         }
     }
+
+    public func setJokerAudioRecordingHandler(_ handler: ((UnsafePointer<Int16>, Int, UInt32, UInt32, Bool) -> Void)?) {
+        if self.isMovedToConference {
+            return
+        }
+        self.ongoingContext?.setJokerAudioRecordingHandler(handler)
+    }
     
     public func requestVideo() {
         if self.isMovedToConference {

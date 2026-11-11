@@ -294,6 +294,7 @@ private protocol OngoingCallThreadLocalContextProtocol: AnyObject {
     func nativeVersion() -> String
     func nativeGetDerivedState() -> Data
     func addExternalAudioData(data: Data)
+    func nativeSetJokerAudioRecordingHandler(_ handler: ((UnsafePointer<Int16>, Int, UInt32, UInt32, Bool) -> Void)?)
     func nativeSetIsAudioSessionActive(isActive: Bool)
     func nativeDeactivateIncomingAudio()
 }
@@ -700,6 +701,10 @@ extension OngoingCallThreadLocalContextWebrtc: OngoingCallThreadLocalContextProt
 
     func addExternalAudioData(data: Data) {
         self.addExternalAudioData(data)
+    }
+
+    func nativeSetJokerAudioRecordingHandler(_ handler: ((UnsafePointer<Int16>, Int, UInt32, UInt32, Bool) -> Void)?) {
+        self.setJokerAudioRecordingHandler(handler)
     }
     
     func nativeDeactivateIncomingAudio() {
@@ -1328,6 +1333,12 @@ public final class OngoingCallContext {
     public func setIsMuted(_ value: Bool) {
         self.withContext { context in
             context.nativeSetIsMuted(value)
+        }
+    }
+
+    public func setJokerAudioRecordingHandler(_ handler: ((UnsafePointer<Int16>, Int, UInt32, UInt32, Bool) -> Void)?) {
+        self.withContext { context in
+            context.nativeSetJokerAudioRecordingHandler(handler)
         }
     }
     

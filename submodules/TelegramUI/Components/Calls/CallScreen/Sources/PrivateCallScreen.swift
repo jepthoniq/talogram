@@ -83,7 +83,8 @@ public final class PrivateCallScreen: OverlayMaskContainerView, AVPictureInPictu
         public var isEnergySavingEnabled: Bool
         public var isConferencePossible: Bool
         public var enableVideoSharpening: Bool
-        
+        public var isRecording: Bool
+
         public init(
             strings: PresentationStrings,
             lifecycleState: LifecycleState,
@@ -99,7 +100,8 @@ public final class PrivateCallScreen: OverlayMaskContainerView, AVPictureInPictu
             isRemoteBatteryLow: Bool,
             isEnergySavingEnabled: Bool,
             isConferencePossible: Bool,
-            enableVideoSharpening: Bool
+            enableVideoSharpening: Bool,
+            isRecording: Bool = false
         ) {
             self.strings = strings
             self.lifecycleState = lifecycleState
@@ -116,6 +118,7 @@ public final class PrivateCallScreen: OverlayMaskContainerView, AVPictureInPictu
             self.isEnergySavingEnabled = isEnergySavingEnabled
             self.isConferencePossible = isConferencePossible
             self.enableVideoSharpening = enableVideoSharpening
+            self.isRecording = isRecording
         }
         
         public static func ==(lhs: State, rhs: State) -> Bool {
@@ -258,6 +261,7 @@ public final class PrivateCallScreen: OverlayMaskContainerView, AVPictureInPictu
     public var flipCameraAction: (() -> Void)?
     public var videoAction: (() -> Void)?
     public var microhoneMuteAction: (() -> Void)?
+    public var recordAction: (() -> Void)?
     public var endCallAction: (() -> Void)?
     public var backAction: (() -> Void)?
     public var closeAction: (() -> Void)?
@@ -855,6 +859,12 @@ public final class PrivateCallScreen: OverlayMaskContainerView, AVPictureInPictu
                     return
                 }
                 self.microhoneMuteAction?()
+            }),
+            ButtonGroupView.Button(content: .record(isRecording: params.state.isRecording), isEnabled: !isTerminated, action: { [weak self] in
+                guard let self else {
+                    return
+                }
+                self.recordAction?()
             }),
             ButtonGroupView.Button(content: .end, isEnabled: !isTerminated, action: { [weak self] in
                 guard let self else {

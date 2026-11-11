@@ -3429,6 +3429,12 @@ public final class PresentationGroupCallImpl: PresentationGroupCall {
     public func addExternalAudioData(data: Data) {
         self.genericCallContext?.addExternalAudioData(data: data)
     }
+
+    public func setJokerAudioRecordingHandler(_ handler: ((UnsafePointer<Int16>, Int, UInt32, UInt32, Bool) -> Void)?) {
+        if case let .call(callContext) = self.genericCallContext {
+            callContext.setJokerAudioRecordingHandler(handler)
+        }
+    }
     
     public func requestVideo() {
         if self.videoCapturer == nil {

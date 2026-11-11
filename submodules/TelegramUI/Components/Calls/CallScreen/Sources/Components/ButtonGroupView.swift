@@ -4,6 +4,7 @@ import Display
 import ComponentFlow
 import AppBundle
 import TelegramPresentationData
+import TelegramUIPreferences
 
 final class ButtonGroupView: OverlayMaskContainerView {
     final class Button {
@@ -14,6 +15,7 @@ final class ButtonGroupView: OverlayMaskContainerView {
                 case video
                 case microphone
                 case end
+                case record
             }
             
             case speaker(audioOutput: PrivateCallScreen.State.AudioOutput)
@@ -21,6 +23,7 @@ final class ButtonGroupView: OverlayMaskContainerView {
             case video(isActive: Bool)
             case microphone(isMuted: Bool)
             case end
+            case record(isRecording: Bool)
             
             var key: Key {
                 switch self {
@@ -34,6 +37,8 @@ final class ButtonGroupView: OverlayMaskContainerView {
                     return .microphone
                 case .end:
                     return .end
+                case .record:
+                    return .record
                 }
             }
         }
@@ -323,6 +328,11 @@ final class ButtonGroupView: OverlayMaskContainerView {
             case .end:
                 title = strings.Call_End
                 image = UIImage(bundleImageName: "Call/End")
+                isActive = false
+                isDestructive = true
+            case let .record(isRecording):
+                title = jokerLocalize(sample: strings.Common_Back, arValue: "تسجيل", enValue: "REC")
+                image = isRecording ? generateFilledRoundedRectImage(size: CGSize(width: 15.0, height: 15.0), cornerRadius: 3.5, color: .white) : generateFilledCircleImage(diameter: 15.0, color: .white)
                 isActive = false
                 isDestructive = true
             }

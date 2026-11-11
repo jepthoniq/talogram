@@ -996,6 +996,16 @@ public final class OngoingGroupCallContext {
             self.context.setIsMuted(isMuted)
         }
 
+        func setJokerAudioRecordingHandler(_ handler: ((UnsafePointer<Int16>, Int, UInt32, UInt32, Bool) -> Void)?) {
+            if let handler {
+                self.context.setJokerAudioRecordingHandler { samples, numFrames, numChannels, sampleRate, isCapture in
+                    handler(samples, Int(numFrames), numChannels, sampleRate, isCapture)
+                }
+            } else {
+                self.context.setJokerAudioRecordingHandler(nil)
+            }
+        }
+
         func setIsNoiseSuppressionEnabled(_ isNoiseSuppressionEnabled: Bool) {
             self.isNoiseSuppressionEnabled.set(isNoiseSuppressionEnabled)
             self.context.setIsNoiseSuppressionEnabled(isNoiseSuppressionEnabled)
@@ -1241,6 +1251,12 @@ public final class OngoingGroupCallContext {
     public func setIsMuted(_ isMuted: Bool) {
         self.impl.with { impl in
             impl.setIsMuted(isMuted)
+        }
+    }
+
+    public func setJokerAudioRecordingHandler(_ handler: ((UnsafePointer<Int16>, Int, UInt32, UInt32, Bool) -> Void)?) {
+        self.impl.with { impl in
+            impl.setJokerAudioRecordingHandler(handler)
         }
     }
 

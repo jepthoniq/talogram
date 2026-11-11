@@ -82,6 +82,7 @@ final class CallControllerNodeV2: ViewControllerTracingNode, CallControllerNodeP
     private var currentAudioOutput: AudioSessionOutput?
     private var isMicrophoneMutedDisposable: Disposable?
     private var audioLevelDisposable: Disposable?
+    private var callRecordingDisposable: Disposable?
     private var audioOutputCheckTimer: Foundation.Timer?
     
     private var applicationInForegroundDisposable: Disposable?
@@ -165,6 +166,12 @@ final class CallControllerNodeV2: ViewControllerTracingNode, CallControllerNodeP
             
             self.call.toggleIsMuted()
         }
+        self.callScreen.recordAction = { [weak self] in
+            guard let self else {
+                return
+            }
+            CallRecording.shared.toggle(accountContext: self.call.context, call: self.call)
+        }
         self.callScreen.endCallAction = { [weak self] in
             guard let self else {
                 return
@@ -241,6 +248,13 @@ final class CallControllerNodeV2: ViewControllerTracingNode, CallControllerNodeP
             }
             self.callScreen.addIncomingAudioLevel(value: audioLevel)
         })
+        self.callRecordingDisposable = (CallRecording.shared.stateSignal
+        |> deliverOnMainQueue).startStrict(next: { [weak self] _ in
+            guard let self else {
+                return
+            }
+            self.updateCallRecordingState()
+        })
         
         self.view.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(self.panGesture(_:))))
         
@@ -300,6 +314,7 @@ final class CallControllerNodeV2: ViewControllerTracingNode, CallControllerNodeP
         self.peerAvatarDisposable?.dispose()
         self.isMicrophoneMutedDisposable?.dispose()
         self.audioLevelDisposable?.dispose()
+        self.callRecordingDisposable?.dispose()
         self.audioOutputCheckTimer?.invalidate()
         self.signalQualityTimer?.invalidate()
         self.applicationInForegroundDisposable?.dispose()
@@ -794,6 +809,18 @@ final class CallControllerNodeV2: ViewControllerTracingNode, CallControllerNodeP
         }
     }
     
+    private func updateCallRecordingState() {
+        guard var callScreenState = self.callScreenState else {
+            return
+        }
+        let isRecording = CallRecording.shared.isRecording
+        if callScreenState.isRecording != isRecording {
+            callScreenState.isRecording = isRecording
+            self.callScreenState = callScreenState
+            self.update(transition: .animated(duration: 0.3, curve: .easeInOut))
+        }
+    }
+
     private func update(transition: ContainedViewLayoutTransition) {
         guard let (layout, navigationBarHeight) = self.validLayout else {
             return

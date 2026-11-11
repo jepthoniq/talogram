@@ -163,7 +163,11 @@ public protocol PresentationCall: AnyObject {
     var isMuted: Signal<Bool, NoError> { get }
     
     var audioOutputState: Signal<([AudioSessionOutput], AudioSessionOutput?), NoError> { get }
-    
+
+    /// Joker: installs a recorder that receives every captured and rendered PCM frame (48 kHz mono 16-bit little-endian).
+    /// Pass nil to stop.
+    func setJokerAudioRecordingHandler(_ handler: ((UnsafePointer<Int16>, Int, UInt32, UInt32, Bool) -> Void)?)
+
     var canBeRemoved: Signal<Bool, NoError> { get }
     
     func answer()
@@ -471,7 +475,11 @@ public protocol PresentationGroupCall: AnyObject {
     var conferenceSource: CallSessionInternalId? { get }
     
     var audioOutputState: Signal<([AudioSessionOutput], AudioSessionOutput?), NoError> { get }
-    
+
+    /// Joker: installs a recorder that receives every captured and rendered PCM frame (48 kHz mono 16-bit little-endian).
+    /// Pass nil to stop.
+    func setJokerAudioRecordingHandler(_ handler: ((UnsafePointer<Int16>, Int, UInt32, UInt32, Bool) -> Void)?)
+
     var isSpeaking: Signal<Bool, NoError> { get }
     var canBeRemoved: Signal<Bool, NoError> { get }
     var state: Signal<PresentationGroupCallState, NoError> { get }
