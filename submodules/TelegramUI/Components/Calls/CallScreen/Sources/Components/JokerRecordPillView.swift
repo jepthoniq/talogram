@@ -129,7 +129,7 @@ public final class JokerRecordPillView: UIButton {
         }
     }
 
-    override func layoutSubviews() {
+    public override func layoutSubviews() {
         super.layoutSubviews()
 
         self.backgroundView.frame = self.bounds
