@@ -304,7 +304,7 @@ public final class ChatAudioBroadcast {
     }
 
     private static func decodeWholeFile(path: String) -> Data? {
-        guard let reader = FFMpegFileReader(source: .file(path), selectedStream: .mediaType(.audio), seek: nil, useHardwareAcceleration: false, maxReadablePts: nil) else {
+        guard let reader = FFMpegFileReader(source: .file(path), useHardwareAcceleration: false, selectedStream: .mediaType(.audio), seek: nil, maxReadablePts: nil) else {
             return nil
         }
         var pcm = Data()
