@@ -316,19 +316,22 @@ public final class CallRecording {
         }
 
         let frameCount = pcm.count / 2
-        var wroteAny = false
-        pcm.withUnsafeBytes { (raw: UnsafeRawBufferPointer) -> Void in
-            let base = raw.baseAddress!
+        let wroteAny = pcm.withUnsafeBytes { bytes -> Bool in
+            guard let base = bytes.baseAddress else {
+                return false
+            }
+            var wrote = false
             var offset = 0
             while offset < frameCount {
                 let count = min(4096, frameCount - offset)
                 let pointer = base.advanced(by: offset * 2)
                 let writeStatus = ExtAudioFileWrite(fileID, UInt32(count), pointer)
                 if writeStatus == noErr {
-                    wroteAny = true
+                    wrote = true
                 }
                 offset += count
             }
+            return wrote
         }
 
         ExtAudioFileDispose(fileID)
