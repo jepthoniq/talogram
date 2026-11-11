@@ -5,7 +5,7 @@ import Display
 // Joker Mod: a floating "recording" button for call screens (private 1:1, group chats and channels).
 // Idle: a red circle with a white dot. Tap fades in a red capsule with a white stop square and the
 // elapsed time (e.g. "0:07"), so the user knows the call is being recorded.
-final class JokerRecordPillView: UIButton {
+public final class JokerRecordPillView: UIButton {
     private let action: () -> Void
 
     private let iconView = UIImageView()
@@ -29,7 +29,7 @@ final class JokerRecordPillView: UIButton {
         return self.isRecording
     }
 
-    init(action: @escaping () -> Void) {
+    public init(action: @escaping () -> Void) {
         self.action = action
         super.init(frame: CGRect(origin: .zero, size: CGSize(width: 40.0, height: 40.0)))
         self.addTarget(self, action: #selector(self.handleTap), for: .touchUpInside)
@@ -54,7 +54,7 @@ final class JokerRecordPillView: UIButton {
         self.updateAppearance()
     }
 
-    required init?(coder: NSCoder) {
+    public required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
