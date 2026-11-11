@@ -1489,18 +1489,15 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
                     })))
                 }
                 
-                // Joker: "شغّل في المكالمة" (Play in Voice Chat) for audio messages in groups and channels
-                var jokerBroadcastFile: TelegramMediaFile?
-                for media in message.effectiveMedia {
+                // Joker: "Play in Voice Chat" for audio messages in groups and channels
+                let isJokerAudioFile = message.effectiveMedia.contains { media in
                     if let file = media as? TelegramMediaFile {
                         let mime = file.mimeType.lowercased()
-                        if file.isVoice || file.isMusic || mime.hasPrefix("audio") {
-                            jokerBroadcastFile = file
-                            break
-                        }
+                        return file.isVoice || file.isMusic || mime.hasPrefix("audio")
                     }
+                    return false
                 }
-                if let jokerBroadcastFile, (message.id.peerId.namespace == Namespaces.Peer.CloudGroup || message.id.peerId.namespace == Namespaces.Peer.CloudChannel) {
+                if isJokerAudioFile, (message.id.peerId.namespace == Namespaces.Peer.CloudGroup || message.id.peerId.namespace == Namespaces.Peer.CloudChannel) {
                     let isJokerBroadcastingThis = ChatAudioBroadcast.shared.isBroadcasting(messageId: message.id)
                     let jokerText = isJokerBroadcastingThis ? chatPresentationInterfaceState.strings.Chat_AudioBroadcast_Stop : chatPresentationInterfaceState.strings.Chat_AudioBroadcast_Play
                     actions.append(.action(ContextMenuActionItem(text: jokerText, icon: { theme in

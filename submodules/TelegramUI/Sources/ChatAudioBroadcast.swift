@@ -1,6 +1,10 @@
 import Foundation
 import UIKit
 import AsyncDisplayKit
+import AVFoundation
+import CoreMedia
+import CoreAudio
+import AudioToolbox
 import TelegramCore
 import SwiftSignalKit
 import AccountContext
@@ -27,11 +31,17 @@ public final class ChatAudioBroadcast {
     public static let shared = ChatAudioBroadcast()
 
     private let statePromise = ValuePromise<State>(.idle, ignoreRepeated: true)
+    private var currentState: State = .idle
     public var stateSignal: Signal<State, NoError> {
         return self.statePromise.get()
     }
     public var state: State {
-        return self.statePromise.with { $0 }
+        return self.currentState
+    }
+
+    private func setState(_ state: State) {
+        self.currentState = state
+        self.statePromise.set(state)
     }
 
     private var fetchDisposable: Disposable?
@@ -70,7 +80,7 @@ public final class ChatAudioBroadcast {
         self.currentMessageId = nil
         self.currentCall = nil
         self.pcmLock.unlock()
-        self.statePromise.set(.idle)
+        self.setState(.idle)
     }
 
     public func toggle(context: AccountContext, message: EngineRawMessage) {
@@ -100,7 +110,7 @@ public final class ChatAudioBroadcast {
             self.presentToast(context: context, text: context.sharedContext.currentPresentationData.with { $0 }.strings.Chat_AudioBroadcast_NoAudio)
             return
         }
-        self.statePromise.set(.fetching(messageId: message.id))
+        self.setState(.fetching(messageId: message.id))
         self.pcmLock.lock()
         self.currentMessageId = message.id
         self.pcmLock.unlock()
@@ -210,7 +220,7 @@ public final class ChatAudioBroadcast {
         self.pcmData = pcmData
         self.pcmOffset = 0
         self.pcmLock.unlock()
-        self.statePromise.set(.broadcasting(messageId: message.id))
+        self.setState(.broadcasting(messageId: message.id))
 
         if let callManager = context.sharedContext.callManager {
             self.watcherDisposable?.dispose()
@@ -289,12 +299,12 @@ public final class ChatAudioBroadcast {
             let controller = UndoOverlayController(presentationData: presentationData, content: .info(title: nil, text: text, timeout: nil, customUndoText: nil), action: { _ in
                 return true
             })
-            context.sharedContext.presentControllerInCurrent(controller, nil)
+            context.sharedContext.mainWindow?.presentInGlobalOverlay(controller)
         }
     }
 
     private static func decodeWholeFile(path: String) -> Data? {
-        guard let reader = FFMpegFileReader(source: .file(path), selectedStream: .mediaType(.audio), seek: nil, useHardwareAcceleration: false) else {
+        guard let reader = FFMpegFileReader(source: .file(path), selectedStream: .mediaType(.audio), seek: nil, useHardwareAcceleration: false, maxReadablePts: nil) else {
             return nil
         }
         var pcm = Data()
