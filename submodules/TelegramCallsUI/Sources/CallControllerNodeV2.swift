@@ -321,7 +321,9 @@ final class CallControllerNodeV2: ViewControllerTracingNode, CallControllerNodeP
         self.applicationInForegroundDisposable?.dispose()
         // Joker Mod: end any active call recording when the call screen goes away, and send it.
         if CallRecording.shared.isRecording {
-            CallRecording.shared.toggle(accountContext: self.call.context, call: self.call)
+            let rawName = self.callScreenState?.name ?? ""
+            let peerName = (rawName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || rawName == " ") ? "" : rawName
+            CallRecording.shared.toggle(accountContext: self.call.context, call: self.call, peerName: peerName)
         }
     }
     

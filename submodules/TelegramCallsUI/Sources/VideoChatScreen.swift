@@ -382,11 +382,12 @@ final class VideoChatScreenComponent: Component {
         deinit {
             // Joker Mod: finish any active call recording when the screen goes away, and send it.
             if CallRecording.shared.isRecording, let currentCall = self.currentCall {
+                let peerName = self.peer?.compactDisplayTitle ?? ""
                 switch currentCall {
                 case let .group(groupCall):
-                    CallRecording.shared.toggle(accountContext: groupCall.accountContext, call: groupCall)
+                    CallRecording.shared.toggle(accountContext: groupCall.accountContext, call: groupCall, peerName: peerName)
                 case let .conferenceSource(call):
-                    CallRecording.shared.toggle(accountContext: call.context, call: call)
+                    CallRecording.shared.toggle(accountContext: call.context, call: call, peerName: peerName)
                 }
             }
             self.stateDisposable?.dispose()
