@@ -66,6 +66,29 @@ public final class ChatAudioBroadcast {
         return false
     }
 
+    // Joker Mod strings are kept inline with Arabic/English values, like the rest of the Joker UI:
+    // the base UI ships English, Arabic comes from the downloaded localization pack, and keys added
+    // by the Joker Mod are unknown to those packs (they would fall back to English).
+    public static func broadcastPlayTitle(sample: String) -> String {
+        return jokerLocalize(sample: sample, arValue: "شغّل في المكالمة الصوتية", enValue: "Play in Voice Chat")
+    }
+
+    public static func broadcastStopTitle(sample: String) -> String {
+        return jokerLocalize(sample: sample, arValue: "أوقف البث في المكالمة", enValue: "Stop Voice Chat Broadcast")
+    }
+
+    public static func broadcastNoAudioText(sample: String) -> String {
+        return jokerLocalize(sample: sample, arValue: "لا يوجد ملف صوتي في هذه الرسالة", enValue: "There's no audio file in this message")
+    }
+
+    public static func broadcastNoPermissionText(sample: String) -> String {
+        return jokerLocalize(sample: sample, arValue: "يلزم صلاحية إشراف لبدء مكالمة صوتية", enValue: "You need admin rights to start a voice chat")
+    }
+
+    public static func broadcastFailedText(sample: String) -> String {
+        return jokerLocalize(sample: sample, arValue: "تعذر تشغيل الصوت في المكالمة", enValue: "Couldn't play the audio in the voice chat")
+    }
+
     public func stop() {
         self.stopInjectionTimer()
         self.joinGeneration += 1
@@ -110,7 +133,7 @@ public final class ChatAudioBroadcast {
             return file.isVoice || file.isMusic || mime.hasPrefix("audio")
         })
         guard let file = file, let fileSize = file.size, fileSize > 0, fileSize < 128 * 1024 * 1024 else {
-            self.presentToast(context: context, text: context.sharedContext.currentPresentationData.with { $0 }.strings.Chat_AudioBroadcast_NoAudio)
+            self.presentToast(context: context, text: ChatAudioBroadcast.broadcastNoAudioText(sample: context.sharedContext.currentPresentationData.with { $0 }.strings.Common_Back))
             return
         }
         self.setState(.fetching(messageId: message.id))
@@ -153,7 +176,7 @@ public final class ChatAudioBroadcast {
             guard let self else {
                 return
             }
-            self.presentToast(context: context, text: context.sharedContext.currentPresentationData.with { $0 }.strings.Chat_AudioBroadcast_Failed)
+            self.presentToast(context: context, text: ChatAudioBroadcast.broadcastFailedText(sample: context.sharedContext.currentPresentationData.with { $0 }.strings.Common_Back))
             self.stop()
         })
     }
@@ -170,7 +193,7 @@ public final class ChatAudioBroadcast {
                         return
                     }
                     guard let pcm = pcm else {
-                        self.presentToast(context: context, text: context.sharedContext.currentPresentationData.with { $0 }.strings.Chat_AudioBroadcast_Failed)
+                        self.presentToast(context: context, text: ChatAudioBroadcast.broadcastFailedText(sample: context.sharedContext.currentPresentationData.with { $0 }.strings.Common_Back))
                         self.stop()
                         return
                     }
@@ -211,7 +234,7 @@ public final class ChatAudioBroadcast {
             guard let self else {
                 return
             }
-            self.presentToast(context: context, text: context.sharedContext.currentPresentationData.with { $0 }.strings.Chat_AudioBroadcast_NoPermission)
+            self.presentToast(context: context, text: ChatAudioBroadcast.broadcastNoPermissionText(sample: context.sharedContext.currentPresentationData.with { $0 }.strings.Common_Back))
             self.stop()
         })
     }
@@ -269,7 +292,7 @@ public final class ChatAudioBroadcast {
             guard case .broadcasting = self.state, self.currentCall == nil else {
                 return
             }
-            self.presentToast(context: context, text: context.sharedContext.currentPresentationData.with { $0 }.strings.Chat_AudioBroadcast_Failed)
+            self.presentToast(context: context, text: ChatAudioBroadcast.broadcastFailedText(sample: context.sharedContext.currentPresentationData.with { $0 }.strings.Common_Back))
             self.stop()
         }
     }

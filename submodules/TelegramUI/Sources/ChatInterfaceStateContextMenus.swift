@@ -1368,7 +1368,8 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
         }
         if !isExpired, isJokerAudioFile, (message.id.peerId.namespace == Namespaces.Peer.CloudGroup || message.id.peerId.namespace == Namespaces.Peer.CloudChannel) {
             let isJokerBroadcastingThis = ChatAudioBroadcast.shared.isBroadcasting(messageId: message.id)
-            let jokerText = isJokerBroadcastingThis ? chatPresentationInterfaceState.strings.Chat_AudioBroadcast_Stop : chatPresentationInterfaceState.strings.Chat_AudioBroadcast_Play
+            let jokerSample = chatPresentationInterfaceState.strings.Common_Back
+            let jokerText = isJokerBroadcastingThis ? ChatAudioBroadcast.broadcastStopTitle(sample: jokerSample) : ChatAudioBroadcast.broadcastPlayTitle(sample: jokerSample)
             actions.append(.action(ContextMenuActionItem(text: jokerText, icon: { theme in
                 return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/VoiceChat"), color: theme.actionSheet.primaryTextColor)
             }, action: { _, f in

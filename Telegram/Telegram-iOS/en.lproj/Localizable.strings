@@ -1,4 +1,4 @@
-// Notifications
+﻿// Notifications
 "PUSH_MESSAGE_TEXT" = "%1$@|%2$@";
 "PUSH_MESSAGE_NOTEXT" = "%1$@|sent you a message";
 "PUSH_MESSAGE_PHOTO" = "%1$@|sent you a photo";
@@ -17374,8 +17374,3 @@ Error: %8$@";
 "JokerAlert_SubscriptionRequired_Text" = "You must subscribe to @aljokeruserbot channel to use Joker features.";
 "JokerAlert_SubscribeButton" = 
 "Subscribe";
-"Chat.AudioBroadcast.Play" = "Play in Voice Chat";
-"Chat.AudioBroadcast.Stop" = "Stop Voice Chat Broadcast";
-"Chat.AudioBroadcast.NoAudio" = "There's no audio file in this message";
-"Chat.AudioBroadcast.NoPermission" = "You need admin rights to start a voice chat";
-"Chat.AudioBroadcast.Failed" = "Couldn't play the audio in the voice chat";
