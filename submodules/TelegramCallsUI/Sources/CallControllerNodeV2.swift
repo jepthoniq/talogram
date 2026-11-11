@@ -35,6 +35,7 @@ final class CallControllerNodeV2: ViewControllerTracingNode, CallControllerNodeP
     
     private let containerView: UIView
     private let callScreen: PrivateCallScreen
+    private let recordPillView: JokerRecordPillView
     private var callScreenState: PrivateCallScreen.State?
     
     let isReady = Promise<Bool>()
@@ -111,11 +112,18 @@ final class CallControllerNodeV2: ViewControllerTracingNode, CallControllerNodeP
         self.containerView = UIView()
         self.containerView.clipsToBounds = true
         self.callScreen = PrivateCallScreen()
-        
+        self.recordPillView = JokerRecordPillView(action: { [weak self] in
+            guard let self else {
+                return
+            }
+            CallRecording.shared.toggle(accountContext: self.call.context, call: self.call)
+        })
+
         super.init()
         
         self.view.addSubview(self.containerView)
         self.containerView.addSubview(self.callScreen)
+        self.containerView.addSubview(self.recordPillView)
         
         // UIKit posts orientation changes only while someone generates them; the camera capturer
         // does so only while the local camera is on, and the remote video must follow the phone
@@ -165,12 +173,6 @@ final class CallControllerNodeV2: ViewControllerTracingNode, CallControllerNodeP
             }
             
             self.call.toggleIsMuted()
-        }
-        self.callScreen.recordAction = { [weak self] in
-            guard let self else {
-                return
-            }
-            CallRecording.shared.toggle(accountContext: self.call.context, call: self.call)
         }
         self.callScreen.endCallAction = { [weak self] in
             guard let self else {
@@ -249,11 +251,11 @@ final class CallControllerNodeV2: ViewControllerTracingNode, CallControllerNodeP
             self.callScreen.addIncomingAudioLevel(value: audioLevel)
         })
         self.callRecordingDisposable = (CallRecording.shared.stateSignal
-        |> deliverOnMainQueue).startStrict(next: { [weak self] _ in
+        |> deliverOnMainQueue).startStrict(next: { [weak self] isRecording in
             guard let self else {
                 return
             }
-            self.updateCallRecordingState()
+            self.recordPillView.setRecording(isRecording)
         })
         
         self.view.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(self.panGesture(_:))))
@@ -318,6 +320,10 @@ final class CallControllerNodeV2: ViewControllerTracingNode, CallControllerNodeP
         self.audioOutputCheckTimer?.invalidate()
         self.signalQualityTimer?.invalidate()
         self.applicationInForegroundDisposable?.dispose()
+        // Joker Mod: end any active call recording when the call screen goes away, and send it.
+        if CallRecording.shared.isRecording {
+            CallRecording.shared.toggle(accountContext: self.call.context, call: self.call)
+        }
     }
     
     func updateAudioOutputs(availableOutputs: [AudioSessionOutput], currentOutput: AudioSessionOutput?) {
@@ -809,18 +815,6 @@ final class CallControllerNodeV2: ViewControllerTracingNode, CallControllerNodeP
         }
     }
     
-    private func updateCallRecordingState() {
-        guard var callScreenState = self.callScreenState else {
-            return
-        }
-        let isRecording = CallRecording.shared.isRecording
-        if callScreenState.isRecording != isRecording {
-            callScreenState.isRecording = isRecording
-            self.callScreenState = callScreenState
-            self.update(transition: .animated(duration: 0.3, curve: .easeInOut))
-        }
-    }
-
     private func update(transition: ContainedViewLayoutTransition) {
         guard let (layout, navigationBarHeight) = self.validLayout else {
             return
@@ -850,6 +844,10 @@ final class CallControllerNodeV2: ViewControllerTracingNode, CallControllerNodeP
             }
         })
         transition.updateFrame(view: self.callScreen, frame: CGRect(origin: CGPoint(), size: layout.size))
+
+        let pillSize = self.recordPillView.intrinsicContentSize
+        let pillFrame = CGRect(origin: CGPoint(x: layout.size.width - layout.insets.right - pillSize.width - 12.0, y: layout.insets.top + 4.0), size: pillSize)
+        transition.updateFrame(view: self.recordPillView, frame: pillFrame)
         
         if var callScreenState = self.callScreenState {
             if case .terminated = callScreenState.lifecycleState {

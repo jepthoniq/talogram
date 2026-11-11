@@ -134,25 +134,35 @@ public final class CallRecording {
             }
             try? file?.close()
         }
-        let duration = self.durationSeconds
 
         DispatchQueue.global(qos: .userInitiated).async {
             defer {
                 try? FileManager.default.removeItem(at: directory)
             }
-            guard let encodedURL = Self.encodeToM4A(micURL: micURL, otherURL: otherURL) else {
-                DispatchQueue.main.async {
-                    let sample = accountContext.sharedContext.currentPresentationData.with { $0 }.strings.Common_Back
-                    let text = jokerLocalize(sample: sample, arValue: "تعذر إنشاء ملف التسجيل", enValue: "Failed to create the recording file")
-                    self.presentToast(context: accountContext, text: text)
-                }
-                return
+            let micData = (try? Data(contentsOf: micURL, options: .mappedIfSafe)) ?? Data()
+            let otherData = (try? Data(contentsOf: otherURL, options: .mappedIfSafe)) ?? Data()
+            let micKB = micData.count / 1024
+            let otherKB = otherData.count / 1024
+            let merged = Self.mergePCMData(mic: micData, other: otherData)
+            let duration = Int32(Double(merged.count / 2) / 48000.0)
+
+            var sentSummary: [String] = []
+            if let m4aURL = Self.encodeToM4A(pcm: merged) {
+                Self.sendRecording(context: accountContext, fileURL: m4aURL, duration: duration, fileName: Self.recordingFileName(extension: "m4a"), mimeType: "audio/x-m4a")
+                sentSummary.append("M4A")
             }
-            let fileName = Self.recordingFileName()
+            if let wavURL = Self.writeMergedWAV(pcm: merged) {
+                Self.sendRecording(context: accountContext, fileURL: wavURL, duration: duration, fileName: Self.recordingFileName(extension: "wav"), mimeType: "audio/x-wav")
+                sentSummary.append("WAV")
+            }
             DispatchQueue.main.async {
-                Self.sendRecording(context: accountContext, fileURL: encodedURL, duration: duration, fileName: fileName)
                 let sample = accountContext.sharedContext.currentPresentationData.with { $0 }.strings.Common_Back
-                let text = jokerLocalize(sample: sample, arValue: "أُرسل التسجيل إلى الرسائل المحفوظة", enValue: "Recording sent to Saved Messages")
+                let text: String
+                if sentSummary.isEmpty {
+                    text = jokerLocalize(sample: sample, arValue: "تعذر إنشاء ملف التسجيل", enValue: "Failed to create the recording file")
+                } else {
+                    text = jokerLocalize(sample: sample, arValue: "تم التسجيل — مايكروفون \(micKB)KB · البقية \(otherKB)KB (أُرسل \(sentSummary.joined(separator: " و")))", enValue: "Recorded — mic \(micKB)KB · others \(otherKB)KB (sent \(sentSummary.joined(separator: " and ")))")
+                }
                 self.presentToast(context: accountContext, text: text)
             }
         }
@@ -232,31 +242,46 @@ public final class CallRecording {
         return header
     }
 
-    private static func encodeToM4A(micURL: URL, otherURL: URL) -> URL? {
-        guard let micData = try? Data(contentsOf: micURL, options: .mappedIfSafe),
-              let otherData = try? Data(contentsOf: otherURL, options: .mappedIfSafe) else {
+    private static func mergePCMData(mic: Data, other: Data) -> Data {
+        let micPayload = mic.count > 44 ? mic.subdata(in: 44 ..< mic.count) : Data()
+        let otherPayload = other.count > 44 ? other.subdata(in: 44 ..< other.count) : Data()
+        return micPayload.withUnsafeBytes { micRaw in
+            return otherPayload.withUnsafeBytes { otherRaw in
+                let micSamples = micRaw.bindMemory(to: Int16.self)
+                let otherSamples = otherRaw.bindMemory(to: Int16.self)
+                let count = max(micSamples.count, otherSamples.count)
+                var result = Data(capacity: count * 2)
+                for i in 0 ..< count {
+                    var sample: Int32 = 0
+                    if i < micSamples.count {
+                        sample += Int32(micSamples[i])
+                    }
+                    if i < otherSamples.count {
+                        sample += Int32(otherSamples[i])
+                    }
+                    sample = max(-32768, min(32767, sample))
+                    var value16 = Int16(truncatingIfNeeded: sample)
+                    var value = value16.littleEndian
+                    withUnsafeBytes(of: &value) { result.append(contentsOf: $0) }
+                }
+                return result
+            }
+        }
+    }
+
+    private static func encodeToM4A(pcm: Data, sampleRate: Double = 48000.0) -> URL? {
+        guard !pcm.isEmpty else {
             return nil
         }
-        let micPCM = micData.count > 44 ? MicPCMSubdata(micData.subdata(in: 44 ..< micData.count)) : MicPCMSubdata(Data())
-        let otherPCM = otherData.count > 44 ? MicPCMSubdata(otherData.subdata(in: 44 ..< otherData.count)) : MicPCMSubdata(Data())
-        let micSamples = micPCM.samples
-        let otherSamples = otherPCM.samples
-        let count = max(micSamples.count, otherSamples.count)
-        guard count > 0 else {
-            return nil
-        }
-        var floats = [Float](repeating: 0, count: count)
-        for i in 0 ..< count {
-            var value: Float = 0
-            if i < micSamples.count {
-                value += Float(micSamples[i].littleEndian) / 32768.0
+        var floats = [Float]()
+        floats.reserveCapacity(pcm.count / 2)
+        pcm.withUnsafeBytes { raw in
+            let samples = raw.bindMemory(to: Int16.self)
+            for sample in samples {
+                floats.append(Float(sample) / 32768.0)
             }
-            if i < otherSamples.count {
-                value += Float(otherSamples[i].littleEndian) / 32768.0
-            }
-            floats[i] = max(-1.0, min(1.0, value))
         }
-        let sampleRate: Double = 48000.0
+
         let inputFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: sampleRate, channels: 1, interleaved: false)!
         let outputSettings: [String: Any] = [
             AVFormatIDKey: kAudioFormatMPEG4AAC,
@@ -325,22 +350,42 @@ public final class CallRecording {
         }
     }
 
-    private static func sendRecording(context: AccountContext, fileURL: URL, duration: Int32, fileName: String) {
+    private static func writeMergedWAV(pcm: Data) -> URL? {
+        guard !pcm.isEmpty else {
+            return nil
+        }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("JokerCallRecording-\(UUID().uuidString).wav")
+        guard FileManager.default.createFile(atPath: url.path, contents: nil) else {
+            return nil
+        }
+        do {
+            let handle = try FileHandle(forWritingTo: url)
+            try handle.write(contentsOf: Self.makeWavHeader(channels: 1, sampleRate: 48000, dataSize: UInt32(clamping: pcm.count)))
+            try handle.write(contentsOf: pcm)
+            try handle.close()
+            return url
+        } catch {
+            try? FileManager.default.removeItem(at: url)
+            return nil
+        }
+    }
+
+    private static func sendRecording(context: AccountContext, fileURL: URL, duration: Int32, fileName: String, mimeType: String) {
         let attributes: [TelegramMediaFileAttribute] = [
             .FileName(fileName: fileName),
             .Audio(isVoice: false, duration: Int(duration), title: nil, performer: nil, waveform: nil)
         ]
         let fileSize = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size]) as? Int64
         let id = Int64.random(in: Int64.min ... Int64.max)
-        let file = TelegramMediaFile(fileId: EngineMedia.Id(namespace: Namespaces.Media.LocalFile, id: id), partialReference: nil, resource: LocalFileReferenceMediaResource(localFilePath: fileURL.path, randomId: id), previewRepresentations: [], videoThumbnails: [], immediateThumbnailData: nil, mimeType: "audio/x-m4a", size: fileSize, attributes: attributes, alternativeRepresentations: [])
+        let file = TelegramMediaFile(fileId: EngineMedia.Id(namespace: Namespaces.Media.LocalFile, id: id), partialReference: nil, resource: LocalFileReferenceMediaResource(localFilePath: fileURL.path, randomId: id), previewRepresentations: [], videoThumbnails: [], immediateThumbnailData: nil, mimeType: mimeType, size: fileSize, attributes: attributes, alternativeRepresentations: [])
         let message = EnqueueMessage.message(text: "", attributes: [], inlineStickers: [:], mediaReference: .standalone(media: file), threadId: nil, replyToMessageId: nil, replyToStoryId: nil, localGroupingKey: nil, correlationId: nil, bubbleUpEmojiOrStickersets: [])
         let _ = enqueueMessages(account: context.account, peerId: context.account.peerId, messages: [message]).start()
     }
 
-    private static func recordingFileName() -> String {
+    private static func recordingFileName(extension ext: String) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH.mm.ss"
-        return "Call Recording \(formatter.string(from: Date())).m4a"
+        return "Call Recording \(formatter.string(from: Date())).\(ext)"
     }
 
     private func presentToast(context: AccountContext, text: String) {
@@ -351,23 +396,5 @@ public final class CallRecording {
             })
             context.sharedContext.mainWindow?.presentInGlobalOverlay(controller)
         }
-    }
-}
-
-private struct MicPCMSubdata {
-    let data: Data
-    init(_ data: Data) {
-        self.data = data
-    }
-    var samples: [Int16] {
-        let count = self.data.count / 2
-        var result = [Int16](repeating: 0, count: count)
-        self.data.withUnsafeBytes { raw in
-            let source = raw.bindMemory(to: Int16.self)
-            for index in 0 ..< count {
-                result[index] = source[index].littleEndian
-            }
-        }
-        return result
     }
 }

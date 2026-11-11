@@ -251,8 +251,8 @@ final class VideoChatScreenComponent: Component {
         
         let title = ComponentView<Empty>()
         let navigationLeftButton = ComponentView<Empty>()
-        let navigationRecordButton = ComponentView<Empty>()
         let navigationRightButton = ComponentView<Empty>()
+        var recordPillView: JokerRecordPillView?
         var navigationSidebarButton: ComponentView<Empty>?
         var encryptionKeyBackground: ComponentView<Empty>?
         var encryptionKey: ComponentView<Empty>?
@@ -299,8 +299,7 @@ final class VideoChatScreenComponent: Component {
         var reconnectedAsEventsDisposable: Disposable?
         var memberEventsDisposable: Disposable?
         var jokerAudioRecordingDisposable: Disposable?
-        var isJokerRecording: Bool = false
-        
+        var isJokerRecording: Bool = false        
         var currentCall: VideoChatCall?
         var appliedCurrentCall: VideoChatCall?
         
@@ -381,6 +380,15 @@ final class VideoChatScreenComponent: Component {
         }
         
         deinit {
+            // Joker Mod: finish any active call recording when the screen goes away, and send it.
+            if CallRecording.shared.isRecording, let currentCall = self.currentCall {
+                switch currentCall {
+                case let .group(groupCall):
+                    CallRecording.shared.toggle(accountContext: groupCall.accountContext, call: groupCall)
+                case let .conferenceSource(call):
+                    CallRecording.shared.toggle(accountContext: call.context, call: call)
+                }
+            }
             self.stateDisposable?.dispose()
             self.membersDisposable?.dispose()
             self.invitedPeersDisposable?.dispose()
@@ -1524,6 +1532,7 @@ final class VideoChatScreenComponent: Component {
                     }
                     if self.isJokerRecording != isRecording {
                         self.isJokerRecording = isRecording
+                        self.recordPillView?.setRecording(isRecording)
                         self.state?.updated(transition: .immediate)
                     }
                 })
@@ -2349,55 +2358,30 @@ final class VideoChatScreenComponent: Component {
                 alphaTransition.setAlpha(view: navigationLeftButtonView, alpha: self.isAnimatedOutFromPrivateCall ? 0.0 : 1.0)
             }
 
-            // Joker Mod: local call recording button.
-            let recordIcon = generateImage(CGSize(width: 40.0, height: 40.0), opaque: false, rotatedContext: { size, context in
-                let bounds = CGRect(origin: .zero, size: size).insetBy(dx: 2.0, dy: 2.0)
-                context.clear(bounds)
-                context.setFillColor(UIColor(rgb: 0xFF3B30).cgColor)
-                context.fillEllipse(in: bounds)
-                context.setFillColor(UIColor.white.cgColor)
-                if self.isJokerRecording {
-                    context.fill(CGRect(origin: CGPoint(x: 12.0, y: 12.0), size: CGSize(width: 16.0, height: 16.0)))
-                } else {
-                    context.fillEllipse(in: bounds.insetBy(dx: 11.0, dy: 11.0))
-                }
-            })
-            let navigationRecordButtonSize = self.navigationRecordButton.update(
-                transition: .immediate,
-                component: AnyComponent(PlainButtonComponent(
-                    content: AnyComponent(Image(
-                        image: recordIcon,
-                        contentMode: .center
-                    )),
-                    background: AnyComponent(
-                        GlassBackgroundComponent(size: CGSize(width: navigationButtonDiameter, height: navigationButtonDiameter), cornerRadius: navigationButtonDiameter * 0.5, isDark: true, tintColor: .init(kind: .custom(style: .default, color: panelColor)))
-                    ),
-                    effectAlignment: .center,
-                    minSize: CGSize(width: navigationButtonDiameter, height: navigationButtonDiameter),
-                    action: { [weak self] in
-                        guard let self, let currentCall = self.currentCall else {
-                            return
-                        }
-                        switch currentCall {
-                        case let .group(groupCall):
-                            CallRecording.shared.toggle(accountContext: groupCall.accountContext, call: groupCall)
-                        case .conferenceSource:
-                            // Conference calls record through the group call UI.
-                            break
-                        }
+            // Joker Mod: local call recording pill.
+            let recordPillView: JokerRecordPillView
+            if let current = self.recordPillView {
+                recordPillView = current
+            } else {
+                recordPillView = JokerRecordPillView(action: { [weak self] in
+                    guard let self, let currentCall = self.currentCall else {
+                        return
                     }
-                )),
-                environment: {},
-                containerSize: CGSize(width: navigationButtonDiameter, height: navigationButtonDiameter)
-            )
-            let navigationRecordButtonFrame = CGRect(origin: CGPoint(x: navigationLeftButtonFrame.maxX + 8.0, y: navigationLeftButtonFrame.minY), size: navigationRecordButtonSize)
-            if let navigationRecordButtonView = self.navigationRecordButton.view {
-                if navigationRecordButtonView.superview == nil {
-                    self.containerView.addSubview(navigationRecordButtonView)
-                }
-                transition.setFrame(view: navigationRecordButtonView, frame: navigationRecordButtonFrame)
-                alphaTransition.setAlpha(view: navigationRecordButtonView, alpha: self.isAnimatedOutFromPrivateCall ? 0.0 : 1.0)
+                    switch currentCall {
+                    case let .group(groupCall):
+                        CallRecording.shared.toggle(accountContext: groupCall.accountContext, call: groupCall)
+                    case .conferenceSource:
+                        // Conference calls record through the group call UI.
+                        break
+                    }
+                })
+                self.recordPillView = recordPillView
+                self.containerView.addSubview(recordPillView)
             }
+            let recordPillSize = recordPillView.intrinsicContentSize
+            let recordPillFrame = CGRect(origin: CGPoint(x: navigationLeftButtonFrame.maxX + 8.0, y: navigationLeftButtonFrame.minY + floor((navigationLeftButtonFrame.height - recordPillSize.height) * 0.5)), size: recordPillSize)
+            recordPillView.frame = recordPillFrame
+            recordPillView.alpha = self.isAnimatedOutFromPrivateCall ? 0.0 : 1.0
             
             // iPhone Duo, unfolded portrait: the status island is wider than the side controls column's inset, so the
             // close button keeps the island's inset from the edge instead of adding it to the column's.
@@ -2517,7 +2501,7 @@ final class VideoChatScreenComponent: Component {
                 // title keeps clear of it on both sides; a left-aligned one (the wide layout) runs up to those buttons.
                 if isLandscape {
                     let titleMaxX = (navigationSidebarButtonFrame ?? navigationRightButtonRowFrame).minX - 8.0
-                    maxTitleWidth = min(maxTitleWidth, max(1.0, titleMaxX - (navigationRecordButtonFrame.maxX + 12.0)))
+                    maxTitleWidth = min(maxTitleWidth, max(1.0, titleMaxX - (navigationLeftButtonFrame.maxX + 56.0)))
                 } else {
                     maxTitleWidth -= environment.navigationBarTrailingButtonsInset * 2.0
                 }
@@ -2570,7 +2554,7 @@ final class VideoChatScreenComponent: Component {
             )
             var titleFrame = CGRect(origin: CGPoint(x: 0.0, y: topInset + floor((navigationBarHeight - titleSize.height) * 0.5)), size: titleSize)
             if isLandscape {
-                titleFrame.origin.x = navigationRecordButtonFrame.maxX + 12.0
+                titleFrame.origin.x = navigationLeftButtonFrame.maxX + 56.0
             } else {
                 titleFrame.origin.x = leftInset + floor((availableSize.width - leftInset - rightInset - titleSize.width) * 0.5)
             }

@@ -860,12 +860,6 @@ public final class PrivateCallScreen: OverlayMaskContainerView, AVPictureInPictu
                 }
                 self.microhoneMuteAction?()
             }),
-            ButtonGroupView.Button(content: .record(isRecording: params.state.isRecording), isEnabled: !isTerminated, action: { [weak self] in
-                guard let self else {
-                    return
-                }
-                self.recordAction?()
-            }),
             ButtonGroupView.Button(content: .end, isEnabled: !isTerminated, action: { [weak self] in
                 guard let self else {
                     return
