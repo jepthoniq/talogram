@@ -1,10 +1,8 @@
 import Foundation
 import UIKit
 import AsyncDisplayKit
-import AVFoundation
 import CoreMedia
 import CoreAudio
-import AudioToolbox
 import TelegramCore
 import SwiftSignalKit
 import AccountContext
@@ -54,8 +52,6 @@ public final class ChatAudioBroadcast {
     private var pcmOffset = 0
     private var currentMessageId: EngineMessage.Id?
     private var joinGeneration: Int = 0
-    private var localPlayer: AVAudioPlayer?
-    private var localPlaybackURL: URL?
     private let pcmLock = NSLock()
     private var injectionTimer: DispatchSourceTimer?
     private let injectionQueue = DispatchQueue(label: "chat.audioBroadcast.injection")
@@ -87,13 +83,6 @@ public final class ChatAudioBroadcast {
         self.currentMessageId = nil
         self.currentCall = nil
         self.pcmLock.unlock()
-        if Thread.isMainThread {
-            self.stopLocalPlayback()
-        } else {
-            DispatchQueue.main.async { [weak self] in
-                self?.stopLocalPlayback()
-            }
-        }
         self.setState(.idle)
     }
 
@@ -310,17 +299,8 @@ public final class ChatAudioBroadcast {
     }
 
     private func startBroadcast() {
-        self.pcmLock.lock()
-        let currentData = self.pcmData
-        let currentMessageId = self.currentMessageId
-        self.pcmLock.unlock()
-
-        // Play the same audio locally so that the broadcaster hears the track as well: the samples injected into
-        // the call are only sent to the other participants (they are mixed into the outgoing/microphone stream).
-        if let currentData, let currentMessageId {
-            self.startLocalPlayback(pcmData: currentData, messageId: currentMessageId)
-        }
-
+        // The samples injected into the call are only sent to the other participants (they are mixed into the outgoing/microphone stream).
+        // The sender hears the same track locally by mixing it into the render path of the call engine.
         let samplesPerChunk = 480 // 10 ms at 48 kHz, mono 16-bit
         let bytesPerChunk = samplesPerChunk * 2
 
@@ -361,88 +341,6 @@ public final class ChatAudioBroadcast {
     private func stopInjectionTimer() {
         self.injectionTimer?.cancel()
         self.injectionTimer = nil
-    }
-
-    private func startLocalPlayback(pcmData: Data, messageId: EngineMessage.Id) {
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let url = ChatAudioBroadcast.writeTemporaryWav(pcm: pcmData) else {
-                return
-            }
-            DispatchQueue.main.async { [weak self] in
-                guard let self else {
-                    try? FileManager.default.removeItem(at: url)
-                    return
-                }
-                self.pcmLock.lock()
-                let isCurrent = self.currentMessageId == messageId
-                self.pcmLock.unlock()
-                guard isCurrent, let player = try? AVAudioPlayer(contentsOf: url) else {
-                    try? FileManager.default.removeItem(at: url)
-                    return
-                }
-                self.stopLocalPlayback()
-                self.localPlayer = player
-                self.localPlaybackURL = url
-                player.numberOfLoops = 0
-                player.volume = 1.0
-                _ = player.play()
-            }
-        }
-    }
-
-    private func stopLocalPlayback() {
-        self.localPlayer?.stop()
-        self.localPlayer = nil
-        if let url = self.localPlaybackURL {
-            try? FileManager.default.removeItem(at: url)
-            self.localPlaybackURL = nil
-        }
-    }
-
-    /// Writes the decoded 48 kHz mono 16-bit PCM into a temporary WAV file, which `AVAudioPlayer` can play.
-    private static func writeTemporaryWav(pcm: Data) -> URL? {
-        guard !pcm.isEmpty else {
-            return nil
-        }
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("joker-voice-broadcast-\(UUID().uuidString).wav")
-        var header = Data()
-        func appendUInt32(_ value: UInt32) {
-            var value = value.littleEndian
-            withUnsafeBytes(of: &value) { header.append(contentsOf: $0) }
-        }
-        func appendUInt16(_ value: UInt16) {
-            var value = value.littleEndian
-            withUnsafeBytes(of: &value) { header.append(contentsOf: $0) }
-        }
-        let sampleRate: UInt32 = 48000
-        let channelCount: UInt16 = 1
-        let dataSize = UInt32(clamping: pcm.count)
-        header.append(contentsOf: Array("RIFF".utf8))
-        appendUInt32(36 &+ dataSize)
-        header.append(contentsOf: Array("WAVE".utf8))
-        header.append(contentsOf: Array("fmt ".utf8))
-        appendUInt32(16)
-        appendUInt16(1)
-        appendUInt16(channelCount)
-        appendUInt32(sampleRate)
-        appendUInt32(sampleRate &* UInt32(channelCount) &* 2)
-        appendUInt16(channelCount &* 2)
-        appendUInt16(16)
-        header.append(contentsOf: Array("data".utf8))
-        appendUInt32(dataSize)
-        guard FileManager.default.createFile(atPath: url.path, contents: nil) else {
-            return nil
-        }
-        do {
-            let handle = try FileHandle(forWritingTo: url)
-            try handle.write(contentsOf: header)
-            try handle.write(contentsOf: pcm)
-            try handle.close()
-            return url
-        } catch {
-            try? FileManager.default.removeItem(at: url)
-            return nil
-        }
     }
 
     private func presentToast(context: AccountContext, text: String) {
