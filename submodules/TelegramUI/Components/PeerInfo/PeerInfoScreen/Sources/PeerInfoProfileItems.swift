@@ -923,6 +923,7 @@ func infoItems(
             label: jokerLocalize(sample: presentationData.strings.Common_Back, arValue: "تاريخ الإنشاء", enValue: "Creation date"),
             text: creationDateText,
             textColor: .primary,
+            action: nil,
             requestLayout: { animated in
                 interaction.requestLayout(animated)
             }
