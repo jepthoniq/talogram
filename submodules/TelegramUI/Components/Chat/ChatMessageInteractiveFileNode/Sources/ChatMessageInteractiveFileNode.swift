@@ -459,18 +459,13 @@ public final class ChatMessageInteractiveFileNode: ASDisplayNode {
                             return .single(data.path)
                         }
                     }
-                    |> mapToSignal { result -> Signal<String?, NoError> in
-                        guard let result = result else {
-                            return .single(nil)
-                        }
-                        return convertOpusToAAC(sourcePath: result, allocateTempFile: {
-                            return EngineTempBox.shared.tempFile(fileName: "audio.m4a").path
-                        })
-                    }
                     |> mapToSignal { result -> Signal<LocallyTranscribedAudio?, NoError> in
                         guard let result = result else {
                             return .single(nil)
                         }
+                        // Joker: hand the original resource path to the transcription engine. It reads
+                        // AVFoundation-compatible files (AAC/MP4) directly and only converts Opus when
+                        // needed, with its own timeout.
                         return transcribeAudio(path: result, appLocale: appLocale)
                     }
                     
@@ -483,8 +478,9 @@ public final class ChatMessageInteractiveFileNode: ASDisplayNode {
                         if let result = result {
                             let _ = arguments.context.engine.messages.storeLocallyTranscribedAudio(messageId: arguments.message.id, text: result.text, isFinal: result.isFinal, error: nil).startStandalone()
                         } else {
-                            strongSelf.audioTranscriptionState = .collapsed
-                            strongSelf.requestUpdateLayout(true)
+                            // Joker: surface the failure in the bubble (with a retry) instead of collapsing silently
+                            // and leaving the transcription spinner running forever.
+                            let _ = arguments.context.engine.messages.storeLocallyTranscribedAudio(messageId: arguments.message.id, text: "", isFinal: true, error: .generic).startStandalone()
                         }
                     }, completed: { [weak self] in
                         guard let strongSelf = self else {

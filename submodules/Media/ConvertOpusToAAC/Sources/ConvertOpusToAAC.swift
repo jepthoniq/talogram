@@ -31,7 +31,12 @@ public func convertOpusToAAC(sourcePath: String, allocateTempFile: @escaping () 
                 let audioInput = AVAssetWriterInput(mediaType: .audio, outputSettings: outputSettings)
                 assetWriter.add(audioInput)
                 
-                assetWriter.startWriting()
+                guard assetWriter.startWriting() else {
+                    print("convertOpusToAAC: failed to start writing: \(String(describing: assetWriter.error))")
+                    subscriber.putNext(nil)
+                    subscriber.putCompletion()
+                    return
+                }
                 assetWriter.startSession(atSourceTime: .zero)
                 
                 let finishWriting: () -> Void = {
