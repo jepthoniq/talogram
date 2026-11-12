@@ -1959,13 +1959,36 @@ public class ChatMessageInteractiveInstantVideoNode: ASDisplayNode {
                         guard let file = message.media.first(where: { $0 is TelegramMediaFile }) as? TelegramMediaFile else {
                             return .single(nil)
                         }
-                        return item.context.engine.resources.data(id: EngineMediaResource.Id(file.resource.id))
+                        let resourceId = EngineMediaResource.Id(file.resource.id)
+                        return item.context.engine.resources.data(id: resourceId)
                         |> take(1)
                         |> mapToSignal { data -> Signal<String?, NoError> in
-                            if !data.isComplete {
-                                return .single(nil)
+                            if data.isComplete {
+                                return .single(data.path)
                             }
-                            return .single(data.path)
+                            // Joker: the video file is not downloaded yet. Start the download and wait
+                            // for it (up to 30s) instead of failing with "No speech detected".
+                            return Signal { subscriber in
+                                let fetchDisposable = messageMediaFileInteractiveFetched(context: item.context, message: message._asMessage(), file: file, userInitiated: true).startStandalone()
+                                let startedAt = Date()
+                                func check() {
+                                    let _ = item.context.engine.resources.data(id: resourceId).startStandalone(next: { data in
+                                        if data.isComplete {
+                                            subscriber.putNext(data.path)
+                                            subscriber.putCompletion()
+                                        } else if Date().timeIntervalSince(startedAt) > 30.0 {
+                                            subscriber.putNext(nil)
+                                            subscriber.putCompletion()
+                                        } else {
+                                            Queue.mainQueue().after(0.5, check)
+                                        }
+                                    })
+                                }
+                                check()
+                                return ActionDisposable {
+                                    fetchDisposable.dispose()
+                                }
+                            }
                         }
                     }
                     |> mapToSignal { result -> Signal<LocallyTranscribedAudio?, NoError> in

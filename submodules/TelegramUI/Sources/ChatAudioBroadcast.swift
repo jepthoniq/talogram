@@ -442,7 +442,9 @@ public final class ChatAudioBroadcast {
             kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
         ]
         let trackOutput = AVAssetReaderTrackOutput(track: videoTrack, outputSettings: outputSettings)
-        trackOutput.alwaysCopiesSampleData = false
+        // Keep the sample data owned by the sample buffer: the capturer hands frames to the media
+        // thread asynchronously, and reused decoder buffers can be overwritten before they are sent.
+        trackOutput.alwaysCopiesSampleData = true
         guard let assetReader = try? AVAssetReader(asset: asset) else {
             return nil
         }
