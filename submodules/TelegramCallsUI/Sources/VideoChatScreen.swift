@@ -2382,8 +2382,12 @@ final class VideoChatScreenComponent: Component {
             }
             let recordPillSize = recordPillView.currentPillSize
             let recordPillFrame = CGRect(origin: CGPoint(x: navigationLeftButtonFrame.maxX + 8.0, y: navigationLeftButtonFrame.minY), size: recordPillSize)
+            let jokerCallRecordingEnabled = (UserDefaults.standard.object(forKey: "joker_call_recording") as? Bool) ?? true
             recordPillView.frame = recordPillFrame
-            recordPillView.alpha = self.isAnimatedOutFromPrivateCall ? 0.0 : 1.0
+            let recordVisible = jokerCallRecordingEnabled && !self.isAnimatedOutFromPrivateCall
+            recordPillView.alpha = recordVisible ? 1.0 : 0.0
+            recordPillView.isUserInteractionEnabled = recordVisible
+            self.containerView.bringSubviewToFront(recordPillView)
             
             // iPhone Duo, unfolded portrait: the status island is wider than the side controls column's inset, so the
             // close button keeps the island's inset from the edge instead of adding it to the column's.

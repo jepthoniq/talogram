@@ -1358,11 +1358,11 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
         
         let isCopyProtected = chatPresentationInterfaceState.copyProtectionEnabled || message.isCopyProtected()
 
-        // Joker: "Play in Voice Chat" for audio messages in groups and channels
+        // Joker: "Play in Voice Chat" for audio and video messages in groups and channels
         let isJokerAudioFile = message.effectiveMedia.contains { media in
             if let file = media as? TelegramMediaFile {
                 let mime = file.mimeType.lowercased()
-                return file.isVoice || file.isMusic || mime.hasPrefix("audio")
+                return file.isVoice || file.isMusic || file.isVideo || mime.hasPrefix("audio") || mime.hasPrefix("video")
             }
             return false
         }

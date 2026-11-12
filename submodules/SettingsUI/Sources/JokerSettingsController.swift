@@ -18,6 +18,7 @@ private final class JokerSettingsControllerArguments {
     let updateFreezeLastSeen: (Bool) -> Void
     let updateBypassCopyProtection: (Bool) -> Void
     let updateStoryStealthMode: (Bool) -> Void
+    let updateCallRecording: (Bool) -> Void
     let openBusinessQuickReplies: () -> Void
 
     init(
@@ -29,6 +30,7 @@ private final class JokerSettingsControllerArguments {
         updateFreezeLastSeen: @escaping (Bool) -> Void,
         updateBypassCopyProtection: @escaping (Bool) -> Void,
         updateStoryStealthMode: @escaping (Bool) -> Void,
+        updateCallRecording: @escaping (Bool) -> Void,
         openBusinessQuickReplies: @escaping () -> Void
     ) {
         self.updateAutoSaveMedia = updateAutoSaveMedia
@@ -39,6 +41,7 @@ private final class JokerSettingsControllerArguments {
         self.updateFreezeLastSeen = updateFreezeLastSeen
         self.updateBypassCopyProtection = updateBypassCopyProtection
         self.updateStoryStealthMode = updateStoryStealthMode
+        self.updateCallRecording = updateCallRecording
         self.openBusinessQuickReplies = openBusinessQuickReplies
     }
 }
@@ -63,6 +66,7 @@ private enum JokerSettingsControllerEntry: ItemListNodeEntry {
     case bypassCopyProtectionToggle(String, String, Bool)
     case keepDeletedMessagesToggle(String, String, Bool)
     case storyStealthModeToggle(String, String, Bool)
+    case callRecordingToggle(String, String, Bool)
 
     case businessHeader(String)
     case businessQuickReplies(String, String)
@@ -72,7 +76,7 @@ private enum JokerSettingsControllerEntry: ItemListNodeEntry {
 
     var section: ItemListSectionId {
         switch self {
-        case .featuresHeader, .autoSaveMediaToggle, .allow100AccountsToggle, .ghostModeToggle, .forcePremiumTranslationToggle, .freezeLastSeenToggle, .bypassCopyProtectionToggle, .keepDeletedMessagesToggle, .storyStealthModeToggle:
+        case .featuresHeader, .autoSaveMediaToggle, .allow100AccountsToggle, .ghostModeToggle, .forcePremiumTranslationToggle, .freezeLastSeenToggle, .bypassCopyProtectionToggle, .keepDeletedMessagesToggle, .storyStealthModeToggle, .callRecordingToggle:
             return JokerSettingsControllerSection.features.rawValue
         case .businessHeader, .businessQuickReplies:
             return JokerSettingsControllerSection.business.rawValue
@@ -101,6 +105,8 @@ private enum JokerSettingsControllerEntry: ItemListNodeEntry {
             return 17
         case .storyStealthModeToggle:
             return 21
+        case .callRecordingToggle:
+            return 24
         case .businessHeader:
             return 18
         case .businessQuickReplies:
@@ -153,6 +159,10 @@ private enum JokerSettingsControllerEntry: ItemListNodeEntry {
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: title, text: text, value: value, sectionId: self.section, style: .blocks, updated: { value in
                 arguments.updateStoryStealthMode(value)
             })
+        case let .callRecordingToggle(title, text, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: title, text: text, value: value, sectionId: self.section, style: .blocks, updated: { value in
+                arguments.updateCallRecording(value)
+            })
         case let .businessHeader(title):
             return ItemListSectionHeaderItem(presentationData: presentationData, text: title, sectionId: self.section)
         case let .businessQuickReplies(title, text):
@@ -179,6 +189,7 @@ private func jokerSettingsControllerEntries(presentationData: PresentationData, 
     entries.append(.bypassCopyProtectionToggle(jokerLocalized(presentationData, "تجاوز حماية المحتوى", "Bypass Copy Protection"), jokerLocalized(presentationData, "تجاوز قيود حماية النسخ في القنوات المحمية وحفظ الصور، وإعادة توجيه الرسالة بالكامل", "Bypass copy protection in protected channels: copy captions, save images, and forward the full message (image with caption)."), settings.bypassCopyProtection))
     entries.append(.keepDeletedMessagesToggle(jokerLocalized(presentationData, "الاحتفاظ بالرسائل المحذوفة", "Keep Deleted Messages"), jokerLocalized(presentationData, "الاحتفاظ بالرسائل المحذوفة في المحادثة", "Keep deleted messages locally with an 'x' mark next to the bubble. Clearing history deletes everything permanently."), settings.keepDeletedMessages))
     entries.append(.storyStealthModeToggle(jokerLocalized(presentationData, "تجميد مشاهدة الستوريات", "Freeze Story Views"), jokerLocalized(presentationData, "شاهد ستوريات الآخرين دون ظهورك في قائمة المشاهدين.", "View other people’s stories without appearing in their viewers list. Works entirely on your device — no subscription, no Telegram Business."), settings.storyStealthMode))
+    entries.append(.callRecordingToggle(jokerLocalized(presentationData, "تسجيل المكالمات", "Call Recording"), jokerLocalized(presentationData, "إظهار زر التسجيل الدائري في شاشة المكالمة لحفظ الصوت محليًا في الرسائل المحفوظة مثل ملف ميرج (ميكروفون + الطرف الآخر)", "Show the circular recording button on the call screen and save a merged local recording (mic + other side) to Saved Messages"), settings.callRecording))
 
     entries.append(.businessHeader(jokerLocalized(presentationData, "ميزات محلية", "Local Features")))
     entries.append(.businessQuickReplies(jokerLocalized(presentationData, "ردود سريعة", "Local Quick Replies"), jokerLocalized(presentationData, "أنشئ وأدر ردودًا سريعة على هذا الجهاز", "Create and manage local quick replies on this device. Not Telegram Business.")))
@@ -218,6 +229,9 @@ public func jokerSettingsController(context: AccountContext) -> ViewController {
         },
         updateStoryStealthMode: { value in
             let _ = updateJokerSettingsInteractively(accountManager: context.sharedContext.accountManager, { $0.withUpdatedStoryStealthMode(value) }).start()
+        },
+        updateCallRecording: { value in
+            let _ = updateJokerSettingsInteractively(accountManager: context.sharedContext.accountManager, { $0.withUpdatedCallRecording(value) }).start()
         },
         openBusinessQuickReplies: {
             guard let settingsController else {

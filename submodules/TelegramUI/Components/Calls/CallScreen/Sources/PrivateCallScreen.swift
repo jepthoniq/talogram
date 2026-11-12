@@ -1015,10 +1015,14 @@ public final class PrivateCallScreen: OverlayMaskContainerView, AVPictureInPictu
 
         // Joker Mod: local recording button sits exactly next to the back button.
         if let recordPillView = self.recordPillView {
+            let jokerCallRecordingEnabled = (UserDefaults.standard.object(forKey: "joker_call_recording") as? Bool) ?? true
             let recordSize = recordPillView.currentPillSize
             let recordFrame = CGRect(origin: CGPoint(x: backButtonFrame.maxX + 8.0, y: backButtonFrame.midY - recordSize.height * 0.5), size: recordSize)
             transition.setFrame(view: recordPillView, frame: recordFrame)
-            genericAlphaTransition.setAlpha(view: recordPillView, alpha: (currentAreControlsHidden || self.isAnimatedOutToGroupCall) ? 0.0 : 1.0)
+            let recordAlpha: CGFloat = (currentAreControlsHidden || self.isAnimatedOutToGroupCall || !jokerCallRecordingEnabled) ? 0.0 : 1.0
+            genericAlphaTransition.setAlpha(view: recordPillView, alpha: recordAlpha)
+            recordPillView.isUserInteractionEnabled = recordAlpha > 0.0
+            self.bringSubviewToFront(recordPillView)
         }
         
         var isConferencePossible = false

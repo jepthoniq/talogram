@@ -78,7 +78,7 @@ public final class ChatAudioBroadcast {
     }
 
     public static func broadcastNoAudioText(sample: String) -> String {
-        return jokerLocalize(sample: sample, arValue: "لا يوجد ملف صوتي في هذه الرسالة", enValue: "There's no audio file in this message")
+        return jokerLocalize(sample: sample, arValue: "لا يوجد ملف صوتي أو فيديو في هذه الرسالة", enValue: "There's no audio or video file in this message")
     }
 
     public static func broadcastNoPermissionText(sample: String) -> String {
@@ -130,7 +130,7 @@ public final class ChatAudioBroadcast {
     private func begin(context: AccountContext, message: EngineRawMessage) {
         let file = message.media.compactMap { $0 as? TelegramMediaFile }.first(where: { file in
             let mime = file.mimeType.lowercased()
-            return file.isVoice || file.isMusic || mime.hasPrefix("audio")
+            return file.isVoice || file.isMusic || file.isVideo || mime.hasPrefix("audio") || mime.hasPrefix("video")
         })
         guard let file = file, let fileSize = file.size, fileSize > 0, fileSize < 128 * 1024 * 1024 else {
             self.presentToast(context: context, text: ChatAudioBroadcast.broadcastNoAudioText(sample: context.sharedContext.currentPresentationData.with { $0 }.strings.Common_Back))
@@ -205,6 +205,31 @@ public final class ChatAudioBroadcast {
 
     private func joinAndInject(context: AccountContext, message: EngineRawMessage, pcmData: Data) {
         let peerId = message.id.peerId
+        // Already inside the voice chat for this peer: injecting the external audio is enough.
+        // Rejoining would tear the call down and reconnect it.
+        if let callManager = context.sharedContext.callManager {
+            self.prepareDisposable?.dispose()
+            self.prepareDisposable = (callManager.currentGroupCallSignal |> take(1) |> deliverOnMainQueue).start(next: { [weak self] call in
+                guard let self else {
+                    return
+                }
+                switch call {
+                case let .group(groupCall):
+                    if let impl = groupCall as? PresentationGroupCallImpl, impl.peerId == peerId {
+                        self.startInjection(context: context, message: message, pcmData: pcmData)
+                        return
+                    }
+                default:
+                    break
+                }
+                self.fetchGroupCallDescriptionAndJoin(context: context, message: message, peerId: peerId, pcmData: pcmData)
+            })
+            return
+        }
+        self.fetchGroupCallDescriptionAndJoin(context: context, message: message, peerId: peerId, pcmData: pcmData)
+    }
+
+    private func fetchGroupCallDescriptionAndJoin(context: AccountContext, message: EngineRawMessage, peerId: EnginePeer.Id, pcmData: Data) {
         let activeCall = context.engine.calls.updatedCurrentPeerGroupCall(peerId: peerId)
         |> take(1)
         |> deliverOnMainQueue
