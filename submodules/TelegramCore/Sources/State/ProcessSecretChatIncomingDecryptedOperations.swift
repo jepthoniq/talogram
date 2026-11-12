@@ -281,6 +281,12 @@ func processSecretChatIncomingDecryptedOperations(encryptionProvider: Encryption
                                 case let .rekeyAction(action):
                                     updatedState = secretChatAdvanceRekeySessionIfNeeded(encryptionProvider: encryptionProvider, transaction: transaction, peerId: peerId, state: updatedState, action: action)
                                 case let .deleteMessages(globallyUniqueIds):
+                                    // Joker Mod: "Secret Chat Tools" — keep the messages on this device even
+                                    // when the chat has a self-destruct timer and the other party sends a
+                                    // delete-messages service action. Deletion stays one-sided: only theirs.
+                                    if JokerCoreHooks.secretChatToolsEnabled() {
+                                        break
+                                    }
                                     var messageIds: [MessageId] = []
                                     for id in globallyUniqueIds {
                                         if let messageId = transaction.messageIdForGloballyUniqueMessageId(peerId: peerId, id: id) {
