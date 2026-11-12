@@ -228,7 +228,62 @@ public final class EngineStoryViewListContext {
             var canLoadMore: Bool
             var nextOffset: NextOffset?
         }
-        
+
+        // MARK: Joker Mod: local cache of story viewers
+        private static let jokerViewersCacheKey = "joker_story_viewers_cache"
+
+        private struct JokerCachedStoryViewer: Codable {
+            let userId: Int64
+            let timestamp: Int32
+        }
+
+        private struct JokerCachedStoryViewers: Codable {
+            var updated: Int32
+            var viewers: [JokerCachedStoryViewer]
+        }
+
+        private static func jokerViewersCacheKeyFor(accountPeerId: EnginePeer.Id, storyId: Int32) -> String {
+            return "\(accountPeerId.toInt64()):\(storyId)"
+        }
+
+        private static func jokerLoadCachedViewers(accountPeerId: EnginePeer.Id, storyId: Int32) -> [JokerCachedStoryViewer] {
+            guard let data = UserDefaults.standard.data(forKey: jokerViewersCacheKey) else {
+                return []
+            }
+            guard let cache = try? JSONDecoder().decode([String: JokerCachedStoryViewers].self, from: data) else {
+                return []
+            }
+            return cache[Self.jokerViewersCacheKeyFor(accountPeerId: accountPeerId, storyId: storyId)]?.viewers ?? []
+        }
+
+        private static func jokerSaveCachedViewers(accountPeerId: EnginePeer.Id, storyId: Int32, viewers: [JokerCachedStoryViewer]) {
+            var cache: [String: JokerCachedStoryViewers] = [:]
+            if let data = UserDefaults.standard.data(forKey: jokerViewersCacheKey),
+               let existing = try? JSONDecoder().decode([String: JokerCachedStoryViewers].self, from: data) {
+                cache = existing
+            }
+            let entryKey = Self.jokerViewersCacheKeyFor(accountPeerId: accountPeerId, storyId: storyId)
+            var merged: [Int64: Int32] = [:]
+            for viewer in cache[entryKey]?.viewers ?? [] {
+                merged[viewer.userId] = max(merged[viewer.userId] ?? 0, viewer.timestamp)
+            }
+            for viewer in viewers {
+                merged[viewer.userId] = max(merged[viewer.userId] ?? 0, viewer.timestamp)
+            }
+            let sortedViewers = merged.map { JokerCachedStoryViewer(userId: $0.key, timestamp: $0.value) }.sorted { $0.timestamp > $1.timestamp }
+            cache[entryKey] = JokerCachedStoryViewers(updated: Int32(Date().timeIntervalSince1970), viewers: Array(sortedViewers.prefix(2000)))
+            if cache.count > 100 {
+                // Evict the least recently updated entries.
+                let keysToDrop = cache.sorted { $0.value.updated < $1.value.updated }.prefix(cache.count - 100).map { $0.key }
+                for key in keysToDrop {
+                    cache.removeValue(forKey: key)
+                }
+            }
+            if let data = try? JSONEncoder().encode(cache) {
+                UserDefaults.standard.set(data, forKey: jokerViewersCacheKey)
+            }
+        }
+
         let queue: Queue
         
         let account: Account
@@ -237,6 +292,7 @@ public final class EngineStoryViewListContext {
         let listMode: ListMode
         let sortMode: SortMode
         let searchQuery: String?
+        let views: EngineStoryItem.Views
         
         let disposable = MetaDisposable()
         let storyStatsDisposable = MetaDisposable()
@@ -245,6 +301,7 @@ public final class EngineStoryViewListContext {
         let statePromise = Promise<InternalState>()
         
         private var parentSource: Impl?
+        private let cacheFallbackDisposable = MetaDisposable()
         var isLoadingMore: Bool = false
         
         init(queue: Queue, account: Account, peerId: EnginePeer.Id, storyId: Int32, views: EngineStoryItem.Views, listMode: ListMode, sortMode: SortMode, searchQuery: String?, parentSource: Impl?) {
@@ -255,6 +312,7 @@ public final class EngineStoryViewListContext {
             self.listMode = listMode
             self.sortMode = sortMode
             self.searchQuery = searchQuery
+            self.views = views
             
             if let parentSource = parentSource, (parentSource.listMode == .everyone || parentSource.listMode == listMode), let parentState = parentSource.state, parentState.totalCount <= 100 {
                 self.parentSource = parentSource
@@ -841,6 +899,52 @@ public final class EngineStoryViewListContext {
             self.isLoadingMore = false
             self.state = currentState
             self.statePromise.set(.single(currentState))
+
+            // Joker Mod: persist viewers locally so they stay visible after the story expires,
+            // and fill in the cached list when the server declines to return them (fully or partially).
+            let accountPeerId = self.account.peerId
+            if self.listMode == .everyone {
+                let freshViewers: [JokerCachedStoryViewer] = currentState.items.compactMap { item in
+                    if case let .view(view) = item {
+                        return JokerCachedStoryViewer(userId: view.peer.id.toInt64(), timestamp: view.timestamp)
+                    }
+                    return nil
+                }
+                if !freshViewers.isEmpty {
+                    Self.jokerSaveCachedViewers(accountPeerId: accountPeerId, storyId: self.storyId, viewers: freshViewers)
+                }
+                if currentState.items.count < self.views.seenCount,
+                   let cachedViewers = Self.jokerLoadCachedViewers(accountPeerId: accountPeerId, storyId: self.storyId),
+                   !cachedViewers.isEmpty {
+                    self.cacheFallbackDisposable.set((self.account.postbox.transaction { transaction -> [Item] in
+                        cachedViewers.compactMap { viewer in
+                            let peerId = EnginePeer.Id(namespace: Namespaces.Peer.CloudUser, id: EnginePeer.Id.Id._internalFromInt64Value(viewer.userId))
+                            guard let peer = transaction.getPeer(peerId) else {
+                                return nil
+                            }
+                            return .view(Item.View(peer: EnginePeer(peer), timestamp: viewer.timestamp, storyStats: transaction.getPeerStoryStats(peerId: peerId), reaction: nil, reactionFile: nil))
+                        }
+                    } |> deliverOn(self.queue)).start(next: { [weak self] cachedItems in
+                        guard let self, !cachedItems.isEmpty else {
+                            return
+                        }
+                        var merged = self.state?.items ?? []
+                        let existing = Set(merged.map(\.uniqueId))
+                        for item in cachedItems where !existing.contains(item.uniqueId) {
+                            merged.append(item)
+                        }
+                        merged.sort { $0.timestamp > $1.timestamp }
+                        var updated = self.state
+                        updated?.items = merged
+                        updated?.totalCount = max(self.views.seenCount, merged.count)
+                        updated?.canLoadMore = false
+                        if let updated {
+                            self.state = updated
+                            self.statePromise.set(.single(updated))
+                        }
+                    }))
+                }
+            }
             
             let statsKey: PostboxViewKey = .peerStoryStats(peerIds: Set(currentState.items.map(\.peer.id)))
             self.storyStatsDisposable.set((self.account.postbox.combinedView(keys: [statsKey])
