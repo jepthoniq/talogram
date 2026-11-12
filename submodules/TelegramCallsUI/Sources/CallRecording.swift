@@ -155,10 +155,6 @@ public final class CallRecording {
                 Self.sendRecording(context: accountContext, fileURL: m4aURL, duration: duration, fileName: Self.recordingFileName(extension: "m4a", peerName: peerName), mimeType: "audio/x-m4a")
                 sentSummary.append("M4A")
             }
-            if let wavURL = Self.writeMergedWAV(pcm: merged) {
-                Self.sendRecording(context: accountContext, fileURL: wavURL, duration: duration, fileName: Self.recordingFileName(extension: "wav", peerName: peerName), mimeType: "audio/x-wav")
-                sentSummary.append("WAV")
-            }
             DispatchQueue.main.async {
                 let sample = accountContext.sharedContext.currentPresentationData.with { $0 }.strings.Common_Back
                 let text: String
@@ -345,26 +341,6 @@ public final class CallRecording {
 
         ExtAudioFileDispose(fileID)
         return wroteAny ? outURL : nil
-    }
-
-    private static func writeMergedWAV(pcm: Data) -> URL? {
-        guard !pcm.isEmpty else {
-            return nil
-        }
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("JokerCallRecording-\(UUID().uuidString).wav")
-        guard FileManager.default.createFile(atPath: url.path, contents: nil) else {
-            return nil
-        }
-        do {
-            let handle = try FileHandle(forWritingTo: url)
-            try handle.write(contentsOf: Self.makeWavHeader(channels: 1, sampleRate: 48000, dataSize: UInt32(clamping: pcm.count)))
-            try handle.write(contentsOf: pcm)
-            try handle.close()
-            return url
-        } catch {
-            try? FileManager.default.removeItem(at: url)
-            return nil
-        }
     }
 
     private static func sendRecording(context: AccountContext, fileURL: URL, duration: Int32, fileName: String, mimeType: String) {
