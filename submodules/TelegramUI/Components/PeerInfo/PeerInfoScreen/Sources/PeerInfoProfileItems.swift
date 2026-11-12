@@ -21,15 +21,6 @@ import TelegramUIPreferences
 private let enabledPublicBioEntities: EnabledEntityTypes = [.allUrl, .mention, .hashtag]
 private let enabledPrivateBioEntities: EnabledEntityTypes = [.internalUrl, .mention, .hashtag]
 
-// Joker Mod: render an actual account/channel/group creation date as a long localized date.
-private func jokerCreationDateLongString(timestamp: Int32) -> String {
-    let date = Date(timeIntervalSince1970: TimeInterval(max(0, timestamp)))
-    let formatter = DateFormatter()
-    formatter.locale = .autoupdatingCurrent
-    formatter.dateStyle = .long
-    return formatter.string(from: date)
-}
-
 private func peerVerificationDescriptionEntities(_ verification: PeerVerification) -> [MessageTextEntity] {
     var result = verification.descriptionEntities
     for entity in generateTextEntities(verification.description, enabledTypes: [.allUrl]) {
@@ -912,9 +903,9 @@ func infoItems(
     // a full date for groups and channels, while for users it only reports month+year.
     let creationDateText: String? = {
         if let channel = data.peer as? TelegramChannel {
-            return jokerCreationDateLongString(timestamp: channel.creationDate)
+            return stringForDate(timestamp: channel.creationDate, timeZone: .current, strings: presentationData.strings)
         } else if let group = data.peer as? TelegramGroup {
-            return jokerCreationDateLongString(timestamp: group.creationDate)
+            return stringForDate(timestamp: group.creationDate, timeZone: .current, strings: presentationData.strings)
         } else if let _ = data.peer as? TelegramUser,
                   let cached = data.cachedData as? CachedUserData,
                   let registration = cached.peerStatusSettings?.registrationDate {
