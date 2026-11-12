@@ -12,6 +12,7 @@ import TelegramPresentationData
 import UndoUI
 import TelegramUIPreferences
 import TelegramStringFormatting
+import TelegramVoip
 
 /// Joker: broadcast a message's audio file into the peer's voice chat directly from a chat.
 ///
@@ -51,6 +52,9 @@ public final class ChatAudioBroadcast {
     private var pcmData: Data?
     private var pcmOffset = 0
     private var currentMessageId: EngineMessage.Id?
+    private var pendingVideoPath: String?
+    private var videoEnabledCall: PresentationGroupCallImpl?
+    private var videoGeneration: Int = 0
     private var joinGeneration: Int = 0
     private let pcmLock = NSLock()
     private var injectionTimer: DispatchSourceTimer?
@@ -92,6 +96,12 @@ public final class ChatAudioBroadcast {
     public func stop() {
         self.stopInjectionTimer()
         self.joinGeneration += 1
+        self.videoGeneration += 1
+        if let videoEnabledCall = self.videoEnabledCall {
+            self.videoEnabledCall = nil
+            videoEnabledCall.disableVideo()
+        }
+        self.pendingVideoPath = nil
         self.watcherDisposable?.dispose()
         self.watcherDisposable = nil
         self.callStateDisposable?.dispose()
@@ -182,6 +192,8 @@ public final class ChatAudioBroadcast {
     }
 
     private func decodeAndBroadcast(context: AccountContext, message: EngineRawMessage, file: TelegramMediaFile, path: String) {
+        let fileMime = file.mimeType.lowercased()
+        self.pendingVideoPath = (file.isVideo || fileMime.hasPrefix("video")) ? path : nil
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self else {
                 return
@@ -343,6 +355,9 @@ public final class ChatAudioBroadcast {
                 return
             }
             self.startBroadcast()
+            if let videoPath = self.pendingVideoPath {
+                self.startVideoInjection(context: context, call: call, path: videoPath)
+            }
         })
     }
 
@@ -384,6 +399,81 @@ public final class ChatAudioBroadcast {
         }
         self.injectionTimer = timer
         timer.resume()
+    }
+
+    // Joker: stream a video file into the call as the local video. Others see the video, its audio
+    // is injected separately by the audio path above. Uses the external sample buffer provider.
+    private func startVideoInjection(context: AccountContext, call: PresentationGroupCallImpl, path: String) {
+        self.videoGeneration += 1
+        let generation = self.videoGeneration
+        guard self.videoEnabledCall == nil || self.videoEnabledCall === call else {
+            // A video is already being broadcast by this feature; do not stack another one.
+            return
+        }
+
+        let videoCapturer = OngoingCallVideoCapturer(isCustom: true)
+        self.videoEnabledCall = call
+        call.requestVideo(capturer: videoCapturer)
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self else {
+                return
+            }
+            guard let reader = FFMpegFileReader(source: .file(path), useHardwareAcceleration: false, selectedStream: .mediaType(.video), seek: nil, maxReadablePts: nil) else {
+                DispatchQueue.main.async { [weak self] in
+                    self?.teardownVideo()
+                }
+                return
+            }
+
+            let fps = Double(max(1, min(60, reader.frameRate())))
+            let defaultFrameSeconds = 1.0 / fps
+            // Give the audio injection a small head start before frames appear.
+            var nextTime = CACurrentMediaTime() + 0.25
+            while self.videoGeneration == generation {
+                switch reader.readFrame() {
+                case let .frame(frame):
+                    guard frame.type == .video else {
+                        continue
+                    }
+                    let frameSeconds = frame.duration.seconds.isFinite && frame.duration.seconds > 0 ? frame.duration.seconds : defaultFrameSeconds
+                    let wait = nextTime - CACurrentMediaTime()
+                    if wait > 0.001 {
+                        Thread.sleep(forTimeInterval: min(wait, 0.5))
+                    }
+                    nextTime = max(nextTime + frameSeconds, CACurrentMediaTime())
+                    let angle = (frame.rotationAngle.rounded()).truncatingRemainder(dividingBy: 360.0)
+                    let rotation: CGImagePropertyOrientation
+                    switch angle {
+                    case 90, -270:
+                        rotation = .left
+                    case 180, -180:
+                        rotation = .down
+                    case 270, -90:
+                        rotation = .right
+                    default:
+                        rotation = .up
+                    }
+                    videoCapturer.injectSampleBuffer(frame.sampleBuffer, rotation: rotation, completion: {})
+                case .waitingForMoreData:
+                    Thread.sleep(forTimeInterval: 0.002)
+                case .endOfStream, .error:
+                    DispatchQueue.main.async { [weak self] in
+                        self?.teardownVideo()
+                    }
+                    return
+                }
+            }
+        }
+    }
+
+    private func teardownVideo() {
+        // Called when the file reaches its end: turn off only the video this feature enabled.
+        if let call = self.videoEnabledCall {
+            self.videoEnabledCall = nil
+            call.disableVideo()
+        }
+        self.videoGeneration += 1
     }
 
     private func stopInjectionTimer() {
