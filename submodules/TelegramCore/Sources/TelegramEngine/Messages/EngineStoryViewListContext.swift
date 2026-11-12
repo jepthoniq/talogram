@@ -913,9 +913,8 @@ public final class EngineStoryViewListContext {
                 if !freshViewers.isEmpty {
                     Self.jokerSaveCachedViewers(accountPeerId: accountPeerId, storyId: self.storyId, viewers: freshViewers)
                 }
-                if currentState.items.count < self.views.seenCount,
-                   let cachedViewers = Self.jokerLoadCachedViewers(accountPeerId: accountPeerId, storyId: self.storyId),
-                   !cachedViewers.isEmpty {
+                let cachedViewers = Self.jokerLoadCachedViewers(accountPeerId: accountPeerId, storyId: self.storyId)
+                if currentState.items.count < self.views.seenCount, !cachedViewers.isEmpty {
                     self.cacheFallbackDisposable.set((self.account.postbox.transaction { transaction -> [Item] in
                         cachedViewers.compactMap { viewer in
                             let peerId = EnginePeer.Id(namespace: Namespaces.Peer.CloudUser, id: EnginePeer.Id.Id._internalFromInt64Value(viewer.userId))
