@@ -436,8 +436,10 @@ public final class ChatAudioBroadcast {
         guard let videoTrack = asset.tracks(withMediaType: .video).first, videoTrack.isEnabled else {
             return nil
         }
+        // NV12 biPlanar — the same family the camera and the screencast paths feed into the
+        // external sample buffer provider; some WebRTC builds drop other formats silently.
         let outputSettings: [String: Any] = [
-            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
         ]
         let trackOutput = AVAssetReaderTrackOutput(track: videoTrack, outputSettings: outputSettings)
         trackOutput.alwaysCopiesSampleData = false
@@ -488,7 +490,11 @@ public final class ChatAudioBroadcast {
                         Thread.sleep(forTimeInterval: min(wait, 0.5))
                     }
                     nextTime = max(nextTime + frameSeconds, CACurrentMediaTime())
-                    videoCapturer.injectSampleBuffer(sampleBuffer, rotation: rotation, completion: {})
+                    guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer),
+                          let displaySampleBuffer = ChatAudioBroadcast.makeDisplayImmediatelySampleBuffer(pixelBuffer: pixelBuffer, frameDuration: frameSeconds) else {
+                        continue
+                    }
+                    videoCapturer.injectSampleBuffer(displaySampleBuffer, rotation: rotation, completion: {})
                     framesInjected += 1
                 } else {
                     print("ChatAudioBroadcast: ended playing video \(path), frames injected: \(framesInjected), reader status: \(assetReader.status.rawValue)")
@@ -575,6 +581,38 @@ public final class ChatAudioBroadcast {
     private func stopInjectionTimer() {
         self.injectionTimer?.cancel()
         self.injectionTimer = nil
+    }
+
+    private static func makeDisplayImmediatelySampleBuffer(pixelBuffer: CVPixelBuffer, frameDuration: Double) -> CMSampleBuffer? {
+        var maybeFormat: CMVideoFormatDescription?
+        let status = CMVideoFormatDescriptionCreateForImageBuffer(allocator: kCFAllocatorDefault, imageBuffer: pixelBuffer, formatDescriptionOut: &maybeFormat)
+        if status != noErr {
+            return nil
+        }
+        guard let format = maybeFormat else {
+            return nil
+        }
+
+        var timingInfo = CMSampleTimingInfo(
+            duration: CMTimeMakeWithSeconds(frameDuration, preferredTimescale: 1000),
+            presentationTimeStamp: CMTimeMake(value: 0, timescale: 1),
+            decodeTimeStamp: CMTimeMake(value: 0, timescale: 1)
+        )
+
+        var maybeSampleBuffer: CMSampleBuffer?
+        let bufferStatus = CMSampleBufferCreateReadyWithImageBuffer(allocator: kCFAllocatorDefault, imageBuffer: pixelBuffer, formatDescription: format, sampleTiming: &timingInfo, sampleBufferOut: &maybeSampleBuffer)
+        if bufferStatus != noErr {
+            return nil
+        }
+        guard let sampleBuffer = maybeSampleBuffer else {
+            return nil
+        }
+
+        let attachments: NSArray = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, createIfNecessary: true)! as NSArray
+        let dict: NSMutableDictionary = attachments[0] as! NSMutableDictionary
+        dict[kCMSampleAttachmentKey_DisplayImmediately as NSString] = true as NSNumber
+
+        return sampleBuffer
     }
 
     private func presentToast(context: AccountContext, text: String) {
