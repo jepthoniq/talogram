@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import AVFoundation
 import AsyncDisplayKit
 import CoreMedia
 import CoreAudio
@@ -403,6 +404,12 @@ public final class ChatAudioBroadcast {
 
     // Joker: stream a video file into the call as the local video. Others see the video, its audio
     // is injected separately by the audio path above. Uses the external sample buffer provider.
+    //
+    // Historically this decoded frames with FFMpeg (software-only). That silently failed for whole
+    // classes of files (MPEG-4, HEVC scenarios that never reached the decoder, or files whose
+    // software path was too slow), leaving the local video tile spinning forever. It now reads
+    // frames through AVAssetReader with hardware decoding, like the broadcast upload extension
+    // does, which supports every codec iOS can play.
     private func startVideoInjection(context: AccountContext, call: PresentationGroupCallImpl, path: String) {
         self.videoGeneration += 1
         let generation = self.videoGeneration
@@ -419,50 +426,91 @@ public final class ChatAudioBroadcast {
             guard let self else {
                 return
             }
-            guard let reader = FFMpegFileReader(source: .file(path), useHardwareAcceleration: false, selectedStream: .mediaType(.video), seek: nil, maxReadablePts: nil) else {
+            let fail = { [weak self] in
                 DispatchQueue.main.async { [weak self] in
-                    self?.teardownVideo()
+                    guard let self else {
+                        return
+                    }
+                    self.teardownVideo()
+                    self.presentToast(context: context, text: ChatAudioBroadcast.broadcastFailedText(sample: context.sharedContext.currentPresentationData.with { $0 }.strings.Common_Back))
                 }
+            }
+            let asset = AVURLAsset(url: URL(fileURLWithPath: path))
+            guard let videoTrack = asset.tracks(withMediaType: .video).first, videoTrack.isEnabled else {
+                print("ChatAudioBroadcast: no readable video track in \(path)")
+                fail()
                 return
             }
 
-            let fps = Double(max(1, min(60, reader.frameRate())))
+            let outputSettings: [String: Any] = [
+                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
+            ]
+            let trackOutput = AVAssetReaderTrackOutput(track: videoTrack, outputSettings: outputSettings)
+            trackOutput.alwaysCopiesSampleData = false
+            let assetReader: AVAssetReader
+            do {
+                assetReader = try AVAssetReader(asset: asset)
+            } catch {
+                print("ChatAudioBroadcast: AVAssetReader init failed for \(path): \(error)")
+                fail()
+                return
+            }
+            guard assetReader.canAdd(trackOutput) else {
+                print("ChatAudioBroadcast: AVAssetReader cannot add the video output for \(path)")
+                fail()
+                return
+            }
+            assetReader.add(trackOutput)
+            if !assetReader.startReading() {
+                print("ChatAudioBroadcast: AVAssetReader failed to start reading \(path): \(String(describing: assetReader.error))")
+                fail()
+                return
+            }
+
+            // A paused transform does not describe the upright player: rotate it to the transform's angle.
+            let transform = videoTrack.preferredTransform
+            let angle = atan2(transform.b, transform.a)
+            let rotation: CGImagePropertyOrientation
+            switch angle {
+            case 0:
+                rotation = .up
+            case .pi / 2:
+                rotation = .left
+            case -.pi / 2:
+                rotation = .right
+            case .pi, -.pi:
+                rotation = .down
+            default:
+                rotation = .up
+            }
+
+            let nominalFps = Double(videoTrack.nominalFrameRate)
+            let fps = max(1.0, min(60.0, nominalFps.isFinite && nominalFps > 0 ? floor(nominalFps) : 30.0))
             let defaultFrameSeconds = 1.0 / fps
             // Give the audio injection a small head start before frames appear.
             var nextTime = CACurrentMediaTime() + 0.25
+            var framesInjected = 0
             while self.videoGeneration == generation {
-                switch reader.readFrame() {
-                case let .frame(frame):
-                    guard frame.type == .video else {
-                        continue
-                    }
-                    let frameSeconds = frame.duration.seconds.isFinite && frame.duration.seconds > 0 ? frame.duration.seconds : defaultFrameSeconds
+                if let sampleBuffer = trackOutput.copyNextSampleBuffer() {
+                    let duration = CMSampleBufferGetDuration(sampleBuffer)
+                    let frameSeconds = duration.isValid && !duration.isIndefinite && !duration.isPositiveInfinity && !duration.isNegativeInfinity && duration.seconds.isFinite && duration.seconds > 0 ? duration.seconds : defaultFrameSeconds
                     let wait = nextTime - CACurrentMediaTime()
                     if wait > 0.001 {
                         Thread.sleep(forTimeInterval: min(wait, 0.5))
                     }
                     nextTime = max(nextTime + frameSeconds, CACurrentMediaTime())
-                    let angle = (frame.rotationAngle.rounded()).truncatingRemainder(dividingBy: 360.0)
-                    let rotation: CGImagePropertyOrientation
-                    switch angle {
-                    case 90, -270:
-                        rotation = .left
-                    case 180, -180:
-                        rotation = .down
-                    case 270, -90:
-                        rotation = .right
-                    default:
-                        rotation = .up
-                    }
-                    videoCapturer.injectSampleBuffer(frame.sampleBuffer, rotation: rotation, completion: {})
-                case .waitingForMoreData:
-                    Thread.sleep(forTimeInterval: 0.002)
-                case .endOfStream, .error:
+                    videoCapturer.injectSampleBuffer(sampleBuffer, rotation: rotation, completion: {})
+                    framesInjected += 1
+                } else {
+                    print("ChatAudioBroadcast: ended playing video \(path), frames injected: \(framesInjected), reader status: \(assetReader.status.rawValue)")
                     DispatchQueue.main.async { [weak self] in
                         self?.teardownVideo()
                     }
                     return
                 }
+            }
+            if assetReader.status != .completed && assetReader.status != .cancelled {
+                assetReader.cancelReading()
             }
         }
     }
