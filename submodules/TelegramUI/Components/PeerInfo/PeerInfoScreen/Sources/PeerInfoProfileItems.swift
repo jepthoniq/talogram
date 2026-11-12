@@ -899,7 +899,19 @@ func infoItems(
     }
     
     if let peer = data.peer {
-        items[.peerInfo]!.append(PeerInfoScreenLabeledValueItem(id: 1000001, label: "ID", text: "\(peer.id.id._internalGetInt64Value())", textColor: .primary, action: nil, requestLayout: { animated in
+        let rawPeerId = peer.id.id._internalGetInt64Value()
+        let peerIdText: String
+        switch peer.id.namespace {
+        case Namespaces.Peer.CloudGroup, Namespaces.Peer.CloudChannel:
+            peerIdText = "-100\(rawPeerId)"
+        default:
+            peerIdText = "\(rawPeerId)"
+        }
+        items[.peerInfo]!.append(PeerInfoScreenLabeledValueItem(id: 1000001, label: "ID", text: peerIdText, textColor: .accent, action: { node, progress in
+            interaction.openPeerId(peerIdText, node, nil, progress)
+        }, contextAction: { node, gesture, _ in
+            interaction.openPeerId(peerIdText, node, gesture, nil)
+        }, requestLayout: { animated in
             interaction.requestLayout(animated)
         }))
     }

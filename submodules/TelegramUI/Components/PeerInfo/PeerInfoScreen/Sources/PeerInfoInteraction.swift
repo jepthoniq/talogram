@@ -11,6 +11,7 @@ final class PeerInfoInteraction {
     let openChat: (EnginePeer.Id?) -> Void
     let openUsername: (String, Bool, Promise<Bool>?) -> Void
     let openPhone: (String, ASDisplayNode, ContextGesture?, Promise<Bool>?) -> Void
+    let openPeerId: (String, ASDisplayNode, ContextGesture?, Promise<Bool>?) -> Void
     let editingOpenNotificationSettings: () -> Void
     let editingOpenSoundSettings: () -> Void
     let editingToggleShowMessageText: (Bool) -> Void
@@ -94,6 +95,7 @@ final class PeerInfoInteraction {
     init(
         openUsername: @escaping (String, Bool, Promise<Bool>?) -> Void,
         openPhone: @escaping (String, ASDisplayNode, ContextGesture?, Promise<Bool>?) -> Void,
+        openPeerId: @escaping (String, ASDisplayNode, ContextGesture?, Promise<Bool>?) -> Void,
         editingOpenNotificationSettings: @escaping () -> Void,
         editingOpenSoundSettings: @escaping () -> Void,
         editingToggleShowMessageText: @escaping (Bool) -> Void,
@@ -177,6 +179,7 @@ final class PeerInfoInteraction {
     ) {
         self.openUsername = openUsername
         self.openPhone = openPhone
+        self.openPeerId = openPeerId
         self.editingOpenNotificationSettings = editingOpenNotificationSettings
         self.editingOpenSoundSettings = editingOpenSoundSettings
         self.editingToggleShowMessageText = editingToggleShowMessageText

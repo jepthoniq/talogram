@@ -538,6 +538,9 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
             openPhone: { [weak self] value, node, gesture, progress in
                 self?.openPhone(value: value, node: node, gesture: gesture, progress: progress)
             },
+            openPeerId: { [weak self] value, node, gesture, progress in
+                self?.openPeerId(value: value, node: node, gesture: gesture, progress: progress)
+            },
             editingOpenNotificationSettings: { [weak self] in
                 self?.editingOpenNotificationSettings()
             },
