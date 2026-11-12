@@ -157,8 +157,12 @@ final class CameraOutput: NSObject {
     
     private func resetHighResolutionPhoto(device: CameraDevice) {
         self.hasHighResolutionPhoto = false
-        if #available(iOS 16.0, *) {
-            guard let format = device.videoDevice?.activeFormat else {
+        if #available(iOS 17.0, *) {
+            guard let format = device.videoDevice?.activeFormat, format.isHighPhotoQualitySupported, !format.supportedMaxPhotoDimensions.isEmpty else {
+                // iPhone XR / older cameras don't exercise the 17+ path reliably; keep the legacy flag only.
+                if self.photoOutput.isHighResolutionCaptureEnabled {
+                    self.photoOutput.isHighResolutionCaptureEnabled = false
+                }
                 return
             }
             let videoDimensions = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
@@ -174,17 +178,31 @@ final class CameraOutput: NSObject {
             }
         }
     }
-    
+
     private func configureHighResolutionPhoto(session: CameraSession, device: CameraDevice) {
         guard session.session.outputs.contains(where: { $0 === self.photoOutput }) else {
             return
         }
-        if #available(iOS 16.0, *) {
-            guard let photoDimensions = device.photoDimensions, let format = device.videoDevice?.activeFormat else {
+        if #available(iOS 17.0, *) {
+            guard let photoDimensions = device.photoDimensions, let format = device.videoDevice?.activeFormat, format.isHighPhotoQualitySupported, !format.supportedMaxPhotoDimensions.isEmpty else {
+                // Older devices (e.g., iPhone XR): keep the legacy capture flag, never call maxPhotoDimensions.
+                if self.photoOutput.isHighResolutionCaptureEnabled == false {
+                    self.photoOutput.isHighResolutionCaptureEnabled = true
+                }
+                self.hasHighResolutionPhoto = true
                 return
             }
-            if format.supportedMaxPhotoDimensions.contains(where: { $0.width == photoDimensions.width && $0.height == photoDimensions.height }) {
+            let supported = format.supportedMaxPhotoDimensions
+            if supported.contains(where: { $0.width == photoDimensions.width && $0.height == photoDimensions.height }) {
                 self.photoOutput.maxPhotoDimensions = photoDimensions
+                self.hasHighResolutionPhoto = true
+            } else if let smallest = supported.min(by: { Int64($0.width) * Int64($0.height) < Int64($1.width) * Int64($1.height) }) {
+                self.photoOutput.maxPhotoDimensions = smallest
+                self.hasHighResolutionPhoto = true
+            } else {
+                if self.photoOutput.isHighResolutionCaptureEnabled == false {
+                    self.photoOutput.isHighResolutionCaptureEnabled = true
+                }
                 self.hasHighResolutionPhoto = true
             }
         } else {
@@ -269,7 +287,7 @@ final class CameraOutput: NSObject {
         if isEncodedPhoto {
             let codecType: AVVideoCodecType = self.photoOutput.availablePhotoCodecTypes.contains(.hevc) ? .hevc : .jpeg
             settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: codecType])
-            if #available(iOS 16.0, *) {
+            if #available(iOS 17.0, *) {
                 settings.maxPhotoDimensions = self.photoOutput.maxPhotoDimensions
             } else {
                 settings.isHighResolutionPhotoEnabled = self.photoOutput.isHighResolutionCaptureEnabled
