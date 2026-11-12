@@ -249,28 +249,33 @@ public final class CallRecording {
     private static func mergePCMData(mic: Data, other: Data) -> Data {
         let micPayload = mic.count > 44 ? mic.subdata(in: 44 ..< mic.count) : Data()
         let otherPayload = other.count > 44 ? other.subdata(in: 44 ..< other.count) : Data()
-        return micPayload.withUnsafeBytes { micRaw in
-            return otherPayload.withUnsafeBytes { otherRaw in
-                let micSamples = micRaw.bindMemory(to: Int16.self)
-                let otherSamples = otherRaw.bindMemory(to: Int16.self)
-                let count = max(micSamples.count, otherSamples.count)
-                var result = Data(capacity: count * 2)
-                for i in 0 ..< count {
-                    var sample: Int32 = 0
-                    if i < micSamples.count {
-                        sample += Int32(micSamples[i])
-                    }
-                    if i < otherSamples.count {
-                        sample += Int32(otherSamples[i])
-                    }
-                    sample = max(-32768, min(32767, sample))
-                    let value16 = Int16(truncatingIfNeeded: sample)
-                    var value = value16.littleEndian
-                    withUnsafeBytes(of: &value) { result.append(contentsOf: $0) }
-                }
-                return result
-            }
+        let micBytes = [UInt8](micPayload)
+        let otherBytes = [UInt8](otherPayload)
+        let micSampleCount = micBytes.count / 2
+        let otherSampleCount = otherBytes.count / 2
+        let count = max(micSampleCount, otherSampleCount)
+
+        func sampleAt(_ bytes: [UInt8], _ byteIndex: Int) -> Int32 {
+            let lo = UInt16(bytes[byteIndex])
+            let hi = UInt16(bytes[byteIndex + 1])
+            return Int32(Int16(bitPattern: lo | (hi << 8)))
         }
+
+        var result = Data(capacity: count * 2)
+        for i in 0 ..< count {
+            var sample: Int32 = 0
+            if i < micSampleCount {
+                sample += sampleAt(micBytes, i * 2)
+            }
+            if i < otherSampleCount {
+                sample += sampleAt(otherBytes, i * 2)
+            }
+            sample = max(-32768, min(32767, sample))
+            let value16 = Int16(truncatingIfNeeded: sample)
+            result.append(UInt8(truncatingIfNeeded: value16))
+            result.append(UInt8(truncatingIfNeeded: value16 >> 8))
+        }
+        return result
     }
 
     private static func encodeToM4A(pcm: Data, sampleRate: Float64 = 48000.0) -> URL? {
@@ -316,22 +321,22 @@ public final class CallRecording {
         }
 
         let frameCount = pcm.count / 2
-        let wroteAny = pcm.withUnsafeBytes { bytes -> Bool in
-            guard let base = bytes.baseAddress else {
-                return false
+        let bytes = [UInt8](pcm)
+        var wroteAny = false
+        bytes.withUnsafeBufferPointer { buffer in
+            guard let base = buffer.baseAddress else {
+                return
             }
-            var wrote = false
             var offset = 0
             while offset < frameCount {
                 let count = min(4096, frameCount - offset)
-                let pointer = base.advanced(by: offset * 2)
+                let pointer = UnsafeRawPointer(base.advanced(by: offset * 2))
                 let writeStatus = ExtAudioFileWrite(fileID, UInt32(count), pointer)
                 if writeStatus == noErr {
-                    wrote = true
+                    wroteAny = true
                 }
                 offset += count
             }
-            return wrote
         }
 
         ExtAudioFileDispose(fileID)
