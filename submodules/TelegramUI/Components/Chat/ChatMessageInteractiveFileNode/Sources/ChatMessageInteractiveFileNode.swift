@@ -42,12 +42,12 @@ private struct FetchControls {
     let cancel: () -> Void
 }
 
-public // Joker Mod: free on-device voice-to-text transcription (Telegram Premium unlock).
+// Joker Mod: free on-device voice-to-text transcription (Telegram Premium unlock).
 private func jokerVoiceToTextEnabled() -> Bool {
     return (UserDefaults.standard.object(forKey: "joker_voice_to_text") as? Bool) ?? true
 }
 
-final class ChatMessageInteractiveFileNode: ASDisplayNode {
+public final class ChatMessageInteractiveFileNode: ASDisplayNode {
     public final class Arguments {
         public let context: AccountContext
         public let presentationData: ChatPresentationData
