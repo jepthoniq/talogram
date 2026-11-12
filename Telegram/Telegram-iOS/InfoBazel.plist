@@ -119,6 +119,8 @@
 	<string>When you send your location to your friends, Telegram needs access to show them a map.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>We need this so that you can record and share voice messages and videos with sound.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>We need this so that your voice messages can be transcribed to text on your device.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>When you send your location to your friends, Telegram needs access to show them a map.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
