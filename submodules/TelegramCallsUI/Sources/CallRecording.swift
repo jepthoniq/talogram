@@ -330,8 +330,12 @@ public final class CallRecording {
             var offset = 0
             while offset < frameCount {
                 let count = min(4096, frameCount - offset)
-                let pointer = UnsafeRawPointer(base.advanced(by: offset * 2))
-                let writeStatus = ExtAudioFileWrite(fileID, UInt32(count), pointer)
+                var audioBuffer = AudioBuffer()
+                audioBuffer.mNumberChannels = 1
+                audioBuffer.mDataByteSize = UInt32(count * 2)
+                audioBuffer.mData = UnsafeMutableRawPointer(mutating: UnsafeRawPointer(base.advanced(by: offset * 2)))
+                var audioBufferList = AudioBufferList(mNumberBuffers: 1, mBuffers: audioBuffer)
+                let writeStatus = ExtAudioFileWrite(fileID, UInt32(count), &audioBufferList)
                 if writeStatus == noErr {
                     wroteAny = true
                 }
