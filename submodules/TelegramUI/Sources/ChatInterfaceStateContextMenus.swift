@@ -1533,7 +1533,7 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
             }
         }
         
-        if resourceAvailable, !message.containsSecretMedia && !isCopyProtected {
+        if resourceAvailable, !(JokerCoreHooks.secretChatToolsEnabled() ? false : message.containsSecretMedia) && !isCopyProtected {
             var mediaReference: AnyMediaReference?
             var isVideo = false
             for media in message.effectiveMedia {
@@ -2680,7 +2680,7 @@ func chatAvailableMessageActionsImpl(engine: TelegramEngine, accountPeerId: Engi
                     }
                 }
                 
-                if message.isCopyProtected() || message.containsSecretMedia {
+                if message.isCopyProtected() || (JokerCoreHooks.secretChatToolsEnabled() ? false : message.containsSecretMedia) {
                     isCopyProtected = true
                 }
                 
@@ -2720,7 +2720,7 @@ func chatAvailableMessageActionsImpl(engine: TelegramEngine, accountPeerId: Engi
                 if id.namespace == Namespaces.Message.EphemeralLocal {
                     let isForwardingDisabled = (message.attributes.first(where: { $0 is EphemeralMessageAttribute }) as? EphemeralMessageAttribute)?.isForwardingDisabled ?? false
                     let isAction = message.media.contains(where: { $0 is TelegramMediaAction || $0 is TelegramMediaExpiredContent })
-                    if !isForwardingDisabled && !message.containsSecretMedia && !isAction && !isCopyProtected && !isShareProtected && !(message.flags.isSending || message.flags.contains(.Failed)) {
+                    if !isForwardingDisabled && !(JokerCoreHooks.secretChatToolsEnabled() ? false : message.containsSecretMedia) && !isAction && !isCopyProtected && !isShareProtected && !(message.flags.isSending || message.flags.contains(.Failed)) {
                         optionsMap[id]!.insert(.forward)
                     }
                     optionsMap[id]!.insert(.deleteLocally)
@@ -2801,8 +2801,8 @@ func chatAvailableMessageActionsImpl(engine: TelegramEngine, accountPeerId: Engi
                                 banPeer = nil
                             }
                         }
-                        if !message.containsSecretMedia && !isAction && !isShareProtected {
-                            if message.id.peerId.namespace != Namespaces.Peer.SecretChat && !message.isCopyProtected() {
+                        if !(JokerCoreHooks.secretChatToolsEnabled() ? false : message.containsSecretMedia) && !isAction && !isShareProtected {
+                            if (message.id.peerId.namespace != Namespaces.Peer.SecretChat || JokerCoreHooks.secretChatToolsEnabled()) && !message.isCopyProtected() {
                                 if !(message.flags.isSending || message.flags.contains(.Failed)) {
                                     optionsMap[id]!.insert(.forward)
                                 }
@@ -2817,7 +2817,7 @@ func chatAvailableMessageActionsImpl(engine: TelegramEngine, accountPeerId: Engi
                             }
                         }
                     } else if let group = peer as? TelegramGroup {
-                        if message.id.peerId.namespace != Namespaces.Peer.SecretChat && !message.containsSecretMedia {
+                        if (message.id.peerId.namespace != Namespaces.Peer.SecretChat || JokerCoreHooks.secretChatToolsEnabled()) && !(JokerCoreHooks.secretChatToolsEnabled() ? false : message.containsSecretMedia) {
                             if !isAction && !message.isCopyProtected() && !isShareProtected {
                                 if !(message.flags.isSending || message.flags.contains(.Failed)) {
                                     optionsMap[id]!.insert(.forward)
@@ -2837,7 +2837,7 @@ func chatAvailableMessageActionsImpl(engine: TelegramEngine, accountPeerId: Engi
                             optionsMap[id]!.insert(.report)
                         }
                     } else if let user = peer as? TelegramUser {
-                        if !isScheduled && message.id.peerId.namespace != Namespaces.Peer.SecretChat && !message.containsSecretMedia && !isAction && !message.id.peerId.isReplies && !message.isCopyProtected() && !isShareProtected {
+                        if !isScheduled && (message.id.peerId.namespace != Namespaces.Peer.SecretChat || JokerCoreHooks.secretChatToolsEnabled()) && !(JokerCoreHooks.secretChatToolsEnabled() ? false : message.containsSecretMedia) && !isAction && !message.id.peerId.isReplies && !message.isCopyProtected() && !isShareProtected {
                             if !(message.flags.isSending || message.flags.contains(.Failed)) {
                                 optionsMap[id]!.insert(.forward)
                             }

@@ -7933,6 +7933,10 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
         if case let .peer(peerId) = self.chatLocation, self.screenCaptureManager == nil {
             if peerId.namespace == Namespaces.Peer.SecretChat {
                 self.screenCaptureManager = ScreenCaptureDetectionManager(check: { [weak self] in
+                    // Joker Mod: "Secret Chat Tools" — never tell the other party that a screenshot was taken.
+                    if JokerCoreHooks.secretChatToolsEnabled() {
+                        return true
+                    }
                     // Returning false keeps the screen-recording poll alive until the chat is actually
                     // visible in the foreground, so a recording started behind a covering screen or while
                     // backgrounded is still reported once the chat comes into view.

@@ -882,7 +882,7 @@ final class ChatItemGalleryFooterContentNode: GalleryFooterContentNode, ASScroll
         }
         var canFullscreen = false
         var canDelete: Bool
-        var canShare = !message.containsSecretMedia && !Namespaces.Message.allNonRegular.contains(message.id.namespace) && message.adAttribute == nil
+        var canShare = (JokerCoreHooks.secretChatToolsEnabled() || !message.containsSecretMedia) && (JokerCoreHooks.secretChatToolsEnabled() || !Namespaces.Message.allNonRegular.contains(message.id.namespace)) && message.adAttribute == nil
                 
         var canEdit = false
         var isImage = false
@@ -927,7 +927,7 @@ final class ChatItemGalleryFooterContentNode: GalleryFooterContentNode, ASScroll
             }
         }
         
-        canEdit = canEdit && !message.containsSecretMedia
+        canEdit = canEdit && (JokerCoreHooks.secretChatToolsEnabled() || !message.containsSecretMedia)
         if let peer = message.peers[message.id.peerId] {
             if peer is TelegramUser || peer is TelegramSecretChat {
                 canDelete = true

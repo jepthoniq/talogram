@@ -320,7 +320,7 @@ public func chatMessageGalleryControllerData(
                 }, baseNavigationController: navigationController, actionInteraction: actionInteraction)
                 gallery.temporaryDoNotWaitForReady = autoplayingVideo
                 return .gallery(.single(gallery))
-            } else if message.containsSecretMedia {
+            } else if message.containsSecretMedia && !JokerCoreHooks.secretChatToolsEnabled() {
                 let gallery = SecretMediaPreviewController(context: context, messageId: message.id)
                 return .secretGallery(gallery)
             } else {

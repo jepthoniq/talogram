@@ -20,6 +20,7 @@ private final class JokerSettingsControllerArguments {
     let updateStoryStealthMode: (Bool) -> Void
     let updateCallRecording: (Bool) -> Void
     let updateVoiceToText: (Bool) -> Void
+    let updateSecretChatTools: (Bool) -> Void
     let openBusinessQuickReplies: () -> Void
 
     init(
@@ -33,6 +34,7 @@ private final class JokerSettingsControllerArguments {
         updateStoryStealthMode: @escaping (Bool) -> Void,
         updateCallRecording: @escaping (Bool) -> Void,
         updateVoiceToText: @escaping (Bool) -> Void,
+        updateSecretChatTools: @escaping (Bool) -> Void,
         openBusinessQuickReplies: @escaping () -> Void
     ) {
         self.updateAutoSaveMedia = updateAutoSaveMedia
@@ -45,6 +47,7 @@ private final class JokerSettingsControllerArguments {
         self.updateStoryStealthMode = updateStoryStealthMode
         self.updateCallRecording = updateCallRecording
         self.updateVoiceToText = updateVoiceToText
+        self.updateSecretChatTools = updateSecretChatTools
         self.openBusinessQuickReplies = openBusinessQuickReplies
     }
 }
@@ -71,6 +74,7 @@ private enum JokerSettingsControllerEntry: ItemListNodeEntry {
     case storyStealthModeToggle(String, String, Bool)
     case callRecordingToggle(String, String, Bool)
     case voiceToTextToggle(String, String, Bool)
+    case secretChatToolsToggle(String, String, Bool)
 
     case businessHeader(String)
     case businessQuickReplies(String, String)
@@ -80,7 +84,7 @@ private enum JokerSettingsControllerEntry: ItemListNodeEntry {
 
     var section: ItemListSectionId {
         switch self {
-        case .featuresHeader, .autoSaveMediaToggle, .allow100AccountsToggle, .ghostModeToggle, .forcePremiumTranslationToggle, .freezeLastSeenToggle, .bypassCopyProtectionToggle, .keepDeletedMessagesToggle, .storyStealthModeToggle, .callRecordingToggle, .voiceToTextToggle:
+        case .featuresHeader, .autoSaveMediaToggle, .allow100AccountsToggle, .ghostModeToggle, .forcePremiumTranslationToggle, .freezeLastSeenToggle, .bypassCopyProtectionToggle, .keepDeletedMessagesToggle, .storyStealthModeToggle, .callRecordingToggle, .voiceToTextToggle, .secretChatToolsToggle:
             return JokerSettingsControllerSection.features.rawValue
         case .businessHeader, .businessQuickReplies:
             return JokerSettingsControllerSection.business.rawValue
@@ -113,6 +117,8 @@ private enum JokerSettingsControllerEntry: ItemListNodeEntry {
             return 24
         case .voiceToTextToggle:
             return 25
+        case .secretChatToolsToggle:
+            return 26
         case .businessHeader:
             return 18
         case .businessQuickReplies:
@@ -173,6 +179,10 @@ private enum JokerSettingsControllerEntry: ItemListNodeEntry {
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: title, text: text, value: value, sectionId: self.section, style: .blocks, updated: { value in
                 arguments.updateVoiceToText(value)
             })
+        case let .secretChatToolsToggle(title, text, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: title, text: text, value: value, sectionId: self.section, style: .blocks, updated: { value in
+                arguments.updateSecretChatTools(value)
+            })
         case let .businessHeader(title):
             return ItemListSectionHeaderItem(presentationData: presentationData, text: title, sectionId: self.section)
         case let .businessQuickReplies(title, text):
@@ -201,6 +211,7 @@ private func jokerSettingsControllerEntries(presentationData: PresentationData, 
     entries.append(.storyStealthModeToggle(jokerLocalized(presentationData, "تجميد مشاهدة الستوريات", "Freeze Story Views"), jokerLocalized(presentationData, "شاهد ستوريات الآخرين دون ظهورك في قائمة المشاهدين.", "View other people’s stories without appearing in their viewers list. Works entirely on your device — no subscription, no Telegram Business."), settings.storyStealthMode))
     entries.append(.callRecordingToggle(jokerLocalized(presentationData, "تسجيل المكالمات", "Call Recording"), jokerLocalized(presentationData, "إظهار زر التسجيل الدائري في شاشة المكالمة لحفظ الصوت محليًا في الرسائل المحفوظة مثل ملف ميرج (ميكروفون + الطرف الآخر)", "Show the circular recording button on the call screen and save a merged local recording (mic + other side) to Saved Messages"), settings.callRecording))
     entries.append(.voiceToTextToggle(jokerLocalized(presentationData, "تحويل الصوت إلى نص", "Voice-to-Text Transcription"), jokerLocalized(presentationData, "فتح ميزة تيليجرام بريميوم لتحويل الرسائل الصوتية إلى نص مجاناً وعلى الجهاز مباشرة، بدون حد للرسائل ودون اشتراك", "Unlock the Premium feature that transcribes voice messages to text for free, on-device, with no message limit and no subscription"), settings.voiceToText))
+    entries.append(.secretChatToolsToggle(jokerLocalized(presentationData, "أدوات المحادثات السرية", "Secret Chat Tools"), jokerLocalized(presentationData, "حفظ الصور والفيديوهات والملفات والرسائل من المحادثات السرية وإرسالها بنسخة محلية بدون خادم، وإخفاء رسالة «تم التقاط السكرين» عن الطرف الآخر — كل شيء محلي على جهازك", "Save photos, videos, files and messages from secret chats and forward them as a local copy (no server involvement), and hide the screenshot notification from the other party — everything stays on your device"), settings.secretChatTools))
 
     entries.append(.businessHeader(jokerLocalized(presentationData, "ميزات محلية", "Local Features")))
     entries.append(.businessQuickReplies(jokerLocalized(presentationData, "ردود سريعة", "Local Quick Replies"), jokerLocalized(presentationData, "أنشئ وأدر ردودًا سريعة على هذا الجهاز", "Create and manage local quick replies on this device. Not Telegram Business.")))
@@ -246,6 +257,9 @@ public func jokerSettingsController(context: AccountContext) -> ViewController {
         },
         updateVoiceToText: { value in
             let _ = updateJokerSettingsInteractively(accountManager: context.sharedContext.accountManager, { $0.withUpdatedVoiceToText(value) }).start()
+        },
+        updateSecretChatTools: { value in
+            let _ = updateJokerSettingsInteractively(accountManager: context.sharedContext.accountManager, { $0.withUpdatedSecretChatTools(value) }).start()
         },
         openBusinessQuickReplies: {
             guard let settingsController else {

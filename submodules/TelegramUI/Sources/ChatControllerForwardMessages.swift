@@ -28,6 +28,14 @@ extension ChatControllerImpl {
     }
 
     func forwardMessages(messages: [EngineRawMessage], options: ChatInterfaceForwardOptionsState? = nil, resetCurrent: Bool) {
+        // Joker Mod: "Secret Chat Tools" — forward secret chat messages as a local re-upload,
+        // never through the server (it refuses to forward them).
+        if JokerCoreHooks.secretChatToolsEnabled(),
+           !messages.isEmpty,
+           messages.allSatisfy({ $0.id.peerId.namespace == Namespaces.Peer.SecretChat }) {
+            self.forwardSecretChatMessagesAsCopy(messages: messages)
+            return
+        }
         let _ = self.presentVoiceMessageDiscardAlert(action: { [weak self] in
             guard let self else {
                 return

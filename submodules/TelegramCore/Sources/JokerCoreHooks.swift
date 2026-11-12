@@ -17,6 +17,12 @@ public enum JokerCoreHooks {
         return boolFlag("joker_bypass_copy_protection")
     }
 
+    // Joker Mod: master switch for the secret chat tools (save media, forward
+    // as a local copy, screenshot suppression). Defaults to on.
+    public static func secretChatToolsEnabled() -> Bool {
+        return boolFlag("joker_secret_chat_tools", defaultOnIfUnset: true)
+    }
+
     public static func freezeLastSeenEnabled() -> Bool {
         return boolFlag("joker_freeze_last_seen")
     }
