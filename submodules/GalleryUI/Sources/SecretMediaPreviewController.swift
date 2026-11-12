@@ -528,8 +528,11 @@ public final class SecretMediaPreviewController: ViewController {
                     }
                 }
                                 
+                // Joker Mod: with Secret Chat Tools enabled, regular (non-view-once) secret-chat media opens
+                // unlocked: it can be saved, shared and screenshotted. View-once media always stays protected.
+                let isLocked = !JokerCoreHooks.secretChatToolsEnabled() || message.minAutoremoveOrClearTimeout == viewOnceTimeout
                 let entry = GalleryEntry(entry: MessageHistoryEntry(message: message, isRead: false, location: nil, monthLocation: nil, attributes: MutableMessageHistoryEntryAttributes(authorIsContact: false)))
-                guard let item = galleryItemForEntry(context: self.context, presentationData: self.presentationData, entry: entry, streamVideos: false, hideControls: true, isSecret: true, playbackRate: { nil }, peerIsCopyProtected: true, tempFilePath: tempFilePath, playbackCompleted: { [weak self] in
+                guard let item = galleryItemForEntry(context: self.context, presentationData: self.presentationData, entry: entry, streamVideos: false, hideControls: true, isSecret: isLocked, playbackRate: { nil }, peerIsCopyProtected: isLocked, tempFilePath: tempFilePath, playbackCompleted: { [weak self] in
                     if let self {
                         if self.currentNodeMessageIsViewOnce || (duration < 30.0 && !self.currentMessageIsDismissed) {
                             if let node = self.controllerNode.pager.centralItemNode() as? UniversalVideoGalleryItemNode {

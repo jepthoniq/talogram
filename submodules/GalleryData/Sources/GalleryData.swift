@@ -320,7 +320,12 @@ public func chatMessageGalleryControllerData(
                 }, baseNavigationController: navigationController, actionInteraction: actionInteraction)
                 gallery.temporaryDoNotWaitForReady = autoplayingVideo
                 return .gallery(.single(gallery))
-            } else if message.containsSecretMedia && !JokerCoreHooks.secretChatToolsEnabled() {
+            } else if message.containsSecretMedia {
+                // Joker Mod: keep the proven Secret Media viewer for all secret-chat media
+                // instead of the regular gallery, which cannot load secret media and
+                // renders a black screen. The Joker Secret Chat Tools relax the
+                // viewer's protections inside the controller (save/share gating),
+                // they do not swap the viewer.
                 let gallery = SecretMediaPreviewController(context: context, messageId: message.id)
                 return .secretGallery(gallery)
             } else {
