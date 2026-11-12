@@ -3,6 +3,7 @@ import UIKit
 import TelegramCore
 import SwiftSignalKit
 import AccountContext
+import LocalMediaResources
 import TextFormat
 import UndoUI
 
@@ -27,55 +28,75 @@ extension ChatControllerImpl {
             for media in message.media {
                 switch media {
                 case let image as TelegramMediaImage:
-                    // Re-upload the decrypted image bytes held in the media box.
+                    // Re-upload the decrypted image bytes held in the media box as a local image.
                     guard let representation = largestImageRepresentation(image.representations) else {
                         continue
                     }
-                    let resource = representation.resource
                     let dimensions = representation.dimensions
                     let captionText = message.text
-                    jobs.append((self.context.account.postbox.mediaBox.resourceData(resource, option: .complete(waitUntilFetchStatus: true))
+                    jobs.append((context.engine.resources.data(resource: EngineMediaResource(representation.resource), waitUntilFetchStatus: true)
                     |> take(1))
-                    |> mapToSignal { data -> Signal<EnqueueMessage?, NoError> in
-                        guard data.complete, let bytes = try? Data(contentsOf: URL(fileURLWithPath: data.path)) else {
-                            return .single(nil)
+                    |> map { data -> EnqueueMessage? in
+                        guard data.isComplete else {
+                            return nil
                         }
-                        return standaloneUploadedImage(postbox: self.context.account.postbox, network: self.context.account.network, peerId: self.context.account.peerId, text: "", source: .data(bytes), thumbnailData: nil, dimensions: dimensions)
-                        |> map { event -> EnqueueMessage? in
-                            guard case let .result(result) = event, case let .media(reference) = result else {
-                                return nil
-                            }
-                            return .message(text: captionText, attributes: captionAttributes, inlineStickers: [:], mediaReference: .standalone(media: reference), threadId: nil, replyToMessageId: nil, replyToStoryId: nil, localGroupingKey: nil, correlationId: nil, bubbleUpEmojiOrStickersets: [])
-                        }
-                        |> `catch` { _ in
-                            return .single(nil)
-                        }
+                        let randomId = Int64.random(in: Int64.min ... Int64.max)
+                        let resource = LocalFileReferenceMediaResource(localFilePath: data.path, randomId: randomId)
+                        let representation = TelegramMediaImageRepresentation(
+                            dimensions: dimensions,
+                            resource: resource,
+                            progressiveSizes: [],
+                            immediateThumbnailData: nil,
+                            hasVideo: false,
+                            isPersonal: false
+                        )
+                        let outImage = TelegramMediaImage(
+                            imageId: EngineMedia.Id(namespace: Namespaces.Media.LocalImage, id: randomId),
+                            representations: [representation],
+                            immediateThumbnailData: nil,
+                            reference: nil,
+                            partialReference: nil,
+                            flags: []
+                        )
+                        return .message(text: captionText, attributes: captionAttributes, inlineStickers: [:], mediaReference: .standalone(media: outImage), threadId: nil, replyToMessageId: nil, replyToStoryId: nil, localGroupingKey: nil, correlationId: nil, bubbleUpEmojiOrStickersets: [])
                     })
 
                 case let file as TelegramMediaFile:
                     // Files (videos, voice messages, music, documents, GIFs) go the same route;
                     // the original attributes keep them playable in the target chat.
-                    let resource = file.resource
-                    let mimeType = file.mimeType
                     let fileAttributes = file.attributes
-                    let hintFileIsLarge = (file.size ?? 0) > 10 * 1024 * 1024
+                    let mimeType = file.mimeType
+                    let fileSize: Int64? = file.size
                     let captionText = message.text
-                    jobs.append((self.context.account.postbox.mediaBox.resourceData(resource, option: .complete(waitUntilFetchStatus: true))
+                    jobs.append((context.engine.resources.data(resource: EngineMediaResource(file.resource), waitUntilFetchStatus: true)
                     |> take(1))
-                    |> mapToSignal { data -> Signal<EnqueueMessage?, NoError> in
-                        guard data.complete, let bytes = try? Data(contentsOf: URL(fileURLWithPath: data.path)) else {
-                            return .single(nil)
+                    |> map { data -> EnqueueMessage? in
+                        guard data.isComplete else {
+                            return nil
                         }
-                        return standaloneUploadedFile(postbox: self.context.account.postbox, network: self.context.account.network, peerId: self.context.account.peerId, text: "", source: .data(bytes), thumbnailData: nil, mimeType: mimeType, attributes: fileAttributes, hintFileIsLarge: hintFileIsLarge)
-                        |> map { event -> EnqueueMessage? in
-                            guard case let .result(result) = event, case let .media(reference) = result else {
-                                return nil
+                        let randomId = Int64.random(in: Int64.min ... Int64.max)
+                        var attributes: [TelegramMediaFileAttribute] = [.FileName(fileName: (data.path as NSString).lastPathComponent)]
+                        attributes.append(contentsOf: fileAttributes.filter { attribute in
+                            if case .FileName = attribute {
+                                return false
                             }
-                            return .message(text: captionText, attributes: captionAttributes, inlineStickers: [:], mediaReference: .standalone(media: reference), threadId: nil, replyToMessageId: nil, replyToStoryId: nil, localGroupingKey: nil, correlationId: nil, bubbleUpEmojiOrStickersets: [])
-                        }
-                        |> `catch` { _ in
-                            return .single(nil)
-                        }
+                            return true
+                        })
+                        let resource = LocalFileVideoMediaResource(randomId: randomId, path: data.path, adjustments: nil)
+                        let outFile = TelegramMediaFile(
+                            fileId: EngineMedia.Id(namespace: Namespaces.Media.LocalFile, id: randomId),
+                            partialReference: nil,
+                            resource: resource,
+                            previewRepresentations: [],
+                            videoThumbnails: [],
+                            videoCover: nil,
+                            immediateThumbnailData: nil,
+                            mimeType: mimeType,
+                            size: fileSize,
+                            attributes: attributes,
+                            alternativeRepresentations: []
+                        )
+                        return .message(text: captionText, attributes: captionAttributes, inlineStickers: [:], mediaReference: .standalone(media: outFile), threadId: nil, replyToMessageId: nil, replyToStoryId: nil, localGroupingKey: nil, correlationId: nil, bubbleUpEmojiOrStickersets: [])
                     })
 
                 default:
