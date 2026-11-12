@@ -16,9 +16,19 @@ import WebUI
 import AvatarNode
 import PeerNameColorItem
 import BoostLevelIconComponent
+import TelegramUIPreferences
 
 private let enabledPublicBioEntities: EnabledEntityTypes = [.allUrl, .mention, .hashtag]
 private let enabledPrivateBioEntities: EnabledEntityTypes = [.internalUrl, .mention, .hashtag]
+
+// Joker Mod: render an actual account/channel/group creation date as a long localized date.
+private func jokerCreationDateLongString(timestamp: Int32) -> String {
+    let date = Date(timeIntervalSince1970: TimeInterval(max(0, timestamp)))
+    let formatter = DateFormatter()
+    formatter.locale = .autoupdatingCurrent
+    formatter.dateStyle = .long
+    return formatter.string(from: date)
+}
 
 private func peerVerificationDescriptionEntities(_ verification: PeerVerification) -> [MessageTextEntity] {
     var result = verification.descriptionEntities
@@ -898,6 +908,36 @@ func infoItems(
         }
     }
     
+    // Joker Mod: show the account creation date just above the ID row. The server reports
+    // a full date for groups and channels, while for users it only reports month+year.
+    let creationDateText: String? = {
+        if let channel = data.peer as? TelegramChannel {
+            return jokerCreationDateLongString(timestamp: channel.creationDate)
+        } else if let group = data.peer as? TelegramGroup {
+            return jokerCreationDateLongString(timestamp: group.creationDate)
+        } else if let _ = data.peer as? TelegramUser,
+                  let cached = data.cachedData as? CachedUserData,
+                  let registration = cached.peerStatusSettings?.registrationDate {
+            let components = registration.components(separatedBy: ".")
+            if components.count == 2, let month = Int32(components[0]), let year = Int32(components[1]) {
+                return stringForMonth(strings: presentationData.strings, month: month - 1, ofYear: year - 1900)
+            }
+            return nil
+        }
+        return nil
+    }()
+    if let creationDateText, !creationDateText.isEmpty {
+        items[.peerInfo]!.append(PeerInfoScreenLabeledValueItem(
+            id: 1000000,
+            label: jokerLocalize(sample: presentationData.strings.Common_Back, arValue: "تاريخ الإنشاء", enValue: "Creation date"),
+            text: creationDateText,
+            textColor: .primary,
+            requestLayout: { animated in
+                interaction.requestLayout(animated)
+            }
+        ))
+    }
+
     if let peer = data.peer {
         let rawPeerId = peer.id.id._internalGetInt64Value()
         let peerIdText: String
