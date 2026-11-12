@@ -902,11 +902,11 @@ func infoItems(
     // Joker Mod: show the account creation date just above the ID row. The server reports
     // a full date for groups and channels, while for users it only reports month+year.
     let creationDateText: String? = {
-        if let channel = data.peer as? TelegramChannel {
+        if case let .channel(channel) = data.peer {
             return stringForDate(timestamp: channel.creationDate, timeZone: .current, strings: presentationData.strings)
-        } else if let group = data.peer as? TelegramGroup {
+        } else if case let .legacyGroup(group) = data.peer {
             return stringForDate(timestamp: group.creationDate, timeZone: .current, strings: presentationData.strings)
-        } else if let _ = data.peer as? TelegramUser,
+        } else if case .user = data.peer,
                   let cached = data.cachedData as? CachedUserData,
                   let registration = cached.peerStatusSettings?.registrationDate {
             let components = registration.components(separatedBy: ".")
