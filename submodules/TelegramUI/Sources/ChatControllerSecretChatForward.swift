@@ -181,10 +181,11 @@ extension ChatControllerImpl {
 
             let presentationData = strongSelf.context.sharedContext.currentPresentationData.with { $0 }
             let singleText: String
-            if let statPeer = peer as? EnginePeer {
-                singleText = messages.count == 1 ? presentationData.strings.Conversation_ForwardTooltip_Chat_One(statPeer.displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder).replacingOccurrences(of: "**", with: "")).string : presentationData.strings.Conversation_ForwardTooltip_Chat_Many(statPeer.displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder).replacingOccurrences(of: "**", with: "")).string
-            } else {
+            if peer.id == strongSelf.context.account.peerId {
                 singleText = messages.count == 1 ? presentationData.strings.Conversation_ForwardTooltip_SavedMessages_One : presentationData.strings.Conversation_ForwardTooltip_SavedMessages_Many
+            } else {
+                let peerName = peer.displayTitle(strings: presentationData.strings, displayOrder: presentationData.nameDisplayOrder).replacingOccurrences(of: "**", with: "")
+                singleText = messages.count == 1 ? presentationData.strings.Conversation_ForwardTooltip_Chat_One(peerName).string : presentationData.strings.Conversation_ForwardTooltip_Chat_Many(peerName).string
             }
             strongSelf.present(UndoOverlayController(presentationData: presentationData, content: .forward(savedMessages: false, text: singleText), elevatedLayout: false, position: .bottom, animateInAsReplacement: true, action: { _ in
                 return false
