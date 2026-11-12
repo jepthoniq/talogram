@@ -26,6 +26,8 @@ swift_library(
         "//submodules/Components/HierarchyTrackingLayer",
         "//submodules/ComponentFlow",
         "//submodules/TelegramUI/Components/StaticGlassBackground",
+        "//submodules/Media/LocalAudioTranscription",
+        "//submodules/Media/ConvertOpusToAAC",
         "//submodules/TelegramUI/Components/AudioTranscriptionButtonComponent",
         "//submodules/UndoUI",
         "//submodules/TelegramNotices",

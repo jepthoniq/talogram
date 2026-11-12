@@ -42,7 +42,12 @@ private struct FetchControls {
     let cancel: () -> Void
 }
 
-public final class ChatMessageInteractiveFileNode: ASDisplayNode {
+public // Joker Mod: free on-device voice-to-text transcription (Telegram Premium unlock).
+private func jokerVoiceToTextEnabled() -> Bool {
+    return (UserDefaults.standard.object(forKey: "joker_voice_to_text") as? Bool) ?? true
+}
+
+final class ChatMessageInteractiveFileNode: ASDisplayNode {
     public final class Arguments {
         public let context: AccountContext
         public let presentationData: ChatPresentationData
@@ -367,7 +372,7 @@ public final class ChatMessageInteractiveFileNode: ASDisplayNode {
             return
         }
         
-        if !context.isPremium, case .inProgress = self.audioTranscriptionState {
+        if !jokerVoiceToTextEnabled() && !context.isPremium, case .inProgress = self.audioTranscriptionState {
             return
         }
         
@@ -375,7 +380,7 @@ public final class ChatMessageInteractiveFileNode: ASDisplayNode {
         let premiumConfiguration = PremiumConfiguration.with(appConfiguration: arguments.context.currentAppConfiguration.with { $0 })
         
         let transcriptionText = self.forcedAudioTranscriptionText ?? transcribedText(message: EngineMessage(message))
-        if transcriptionText == nil && !arguments.associatedData.alwaysDisplayTranscribeButton.providedByGroupBoost {
+        if transcriptionText == nil && !arguments.associatedData.alwaysDisplayTranscribeButton.providedByGroupBoost && !jokerVoiceToTextEnabled() {
             if premiumConfiguration.audioTransciptionTrialCount > 0 {
                 if !arguments.associatedData.isPremium {
                     if self.presentAudioTranscriptionTooltip(finished: false) {
@@ -434,7 +439,7 @@ public final class ChatMessageInteractiveFileNode: ASDisplayNode {
                 self.audioTranscriptionState = .inProgress
                 self.requestUpdateLayout(true)
                 
-                if context.sharedContext.immediateExperimentalUISettings.localTranscription {
+                if jokerVoiceToTextEnabled() || context.sharedContext.immediateExperimentalUISettings.localTranscription {
                     let appLocale = presentationData.strings.baseLanguageCode
                     
                     let signal: Signal<LocallyTranscribedAudio?, NoError> = context.engine.data.get(TelegramEngine.EngineData.Item.Messages.Message(id: message.id))
@@ -497,7 +502,7 @@ public final class ChatMessageInteractiveFileNode: ASDisplayNode {
                         strongSelf.transcribeDisposable?.dispose()
                         strongSelf.transcribeDisposable = nil
                         
-                        if let arguments = strongSelf.arguments, !arguments.associatedData.isPremium && !arguments.associatedData.alwaysDisplayTranscribeButton.providedByGroupBoost {
+                        if let arguments = strongSelf.arguments, !jokerVoiceToTextEnabled() && !arguments.associatedData.isPremium && !arguments.associatedData.alwaysDisplayTranscribeButton.providedByGroupBoost {
                             Queue.mainQueue().after(0.1, {
                                 let _ = strongSelf.presentAudioTranscriptionTooltip(finished: true)
                             })
@@ -524,7 +529,7 @@ public final class ChatMessageInteractiveFileNode: ASDisplayNode {
     }
     
     private func presentAudioTranscriptionTooltip(finished: Bool) -> Bool {
-        guard let arguments = self.arguments, !arguments.associatedData.isPremium else {
+        guard let arguments = self.arguments, !jokerVoiceToTextEnabled() && !arguments.associatedData.isPremium else {
             return false
         }
         
@@ -789,7 +794,7 @@ public final class ChatMessageInteractiveFileNode: ASDisplayNode {
                     displayTranscribe = false
                 } else if arguments.message.id.peerId.namespace != Namespaces.Peer.SecretChat && !isViewOnceMessage && !arguments.presentationData.isPreview {
                     let premiumConfiguration = PremiumConfiguration.with(appConfiguration: arguments.context.currentAppConfiguration.with { $0 })
-                    if arguments.associatedData.isPremium || arguments.associatedData.alwaysDisplayTranscribeButton.providedByGroupBoost {
+                    if jokerVoiceToTextEnabled() || arguments.associatedData.isPremium || arguments.associatedData.alwaysDisplayTranscribeButton.providedByGroupBoost {
                         displayTranscribe = true
                     } else if premiumConfiguration.audioTransciptionTrialCount > 0 {
                         if arguments.incoming {

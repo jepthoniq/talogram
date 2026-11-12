@@ -30,6 +30,8 @@ import WallpaperBackgroundNode
 import TelegramStringFormatting
 import InvisibleInkDustNode
 import StaticGlassBackground
+import ConvertOpusToAAC
+import LocalAudioTranscription
 
 public struct ChatMessageInstantVideoItemLayoutResult {
     public let contentSize: CGSize
@@ -60,6 +62,11 @@ private let inlineBotNameFont = nameFont
 public enum ChatMessageInteractiveInstantVideoNodeStatusType {
     case free
     case bubble
+}
+
+// Joker Mod: free on-device voice-to-text transcription (Telegram Premium unlock).
+private func jokerVoiceToTextEnabled() -> Bool {
+    return (UserDefaults.standard.object(forKey: "joker_voice_to_text") as? Bool) ?? true
 }
 
 public class ChatMessageInteractiveInstantVideoNode: ASDisplayNode {
@@ -872,7 +879,7 @@ public class ChatMessageInteractiveInstantVideoNode: ASDisplayNode {
                     var displayTranscribe = false
                     if item.message.id.peerId.namespace != Namespaces.Peer.SecretChat && statusDisplayType == .free && !isViewOnceMessage && !item.presentationData.isPreview {
                         let premiumConfiguration = PremiumConfiguration.with(appConfiguration: item.context.currentAppConfiguration.with { $0 })
-                        if item.associatedData.isPremium || item.associatedData.alwaysDisplayTranscribeButton.providedByGroupBoost {
+                        if jokerVoiceToTextEnabled() || item.associatedData.isPremium || item.associatedData.alwaysDisplayTranscribeButton.providedByGroupBoost {
                             displayTranscribe = true
                         } else if premiumConfiguration.audioTransciptionTrialCount > 0 {
                             if incoming {
@@ -1874,7 +1881,7 @@ public class ChatMessageInteractiveInstantVideoNode: ASDisplayNode {
             return
         }
         
-        if !item.context.isPremium, case .inProgress = self.audioTranscriptionState {
+        if !jokerVoiceToTextEnabled() && !item.context.isPremium, case .inProgress = self.audioTranscriptionState {
             return
         }
         
@@ -1882,7 +1889,7 @@ public class ChatMessageInteractiveInstantVideoNode: ASDisplayNode {
         let premiumConfiguration = PremiumConfiguration.with(appConfiguration: item.context.currentAppConfiguration.with { $0 })
         
         let transcriptionText = transcribedText(message: EngineMessage(item.message))
-        if transcriptionText == nil && !item.associatedData.alwaysDisplayTranscribeButton.providedByGroupBoost {
+        if transcriptionText == nil && !item.associatedData.alwaysDisplayTranscribeButton.providedByGroupBoost && !jokerVoiceToTextEnabled() {
             if premiumConfiguration.audioTransciptionTrialCount > 0 {
                 if !item.associatedData.isPremium {
                     if self.presentAudioTranscriptionTooltip(finished: false) {
@@ -1942,20 +1949,73 @@ public class ChatMessageInteractiveInstantVideoNode: ASDisplayNode {
                 self.audioTranscriptionState = .inProgress
                 self.requestUpdateLayout(true)
                 
-                self.transcribeDisposable = (item.context.engine.messages.transcribeAudio(messageId: item.message.id)
-                |> deliverOnMainQueue).startStrict(next: { [weak self] result in
-                    guard let strongSelf = self else {
-                        return
+                if jokerVoiceToTextEnabled() || item.context.sharedContext.immediateExperimentalUISettings.localTranscription {
+                    let appLocale = presentationData.strings.baseLanguageCode
+                    let signal: Signal<LocallyTranscribedAudio?, NoError> = item.context.engine.data.get(TelegramEngine.EngineData.Item.Messages.Message(id: item.message.id))
+                    |> mapToSignal { message -> Signal<String?, NoError> in
+                        guard let message = message else {
+                            return .single(nil)
+                        }
+                        guard let file = message.media.first(where: { $0 is TelegramMediaFile }) as? TelegramMediaFile else {
+                            return .single(nil)
+                        }
+                        return item.context.engine.resources.data(id: EngineMediaResource.Id(file.resource.id))
+                        |> take(1)
+                        |> mapToSignal { data -> Signal<String?, NoError> in
+                            if !data.isComplete {
+                                return .single(nil)
+                            }
+                            return .single(data.path)
+                        }
                     }
-                    strongSelf.transcribeDisposable?.dispose()
-                    strongSelf.transcribeDisposable = nil
-                    
-                    if let item = strongSelf.item, !item.associatedData.isPremium && !item.associatedData.alwaysDisplayTranscribeButton.providedByGroupBoost {
-                        Queue.mainQueue().after(0.1, {
-                            let _ = strongSelf.presentAudioTranscriptionTooltip(finished: true)
+                    |> mapToSignal { result -> Signal<String?, NoError> in
+                        guard let result = result else {
+                            return .single(nil)
+                        }
+                        return convertOpusToAAC(sourcePath: result, allocateTempFile: {
+                            return EngineTempBox.shared.tempFile(fileName: "audio.m4a").path
                         })
                     }
-                })
+                    |> mapToSignal { result -> Signal<LocallyTranscribedAudio?, NoError> in
+                        guard let result = result else {
+                            return .single(nil)
+                        }
+                        return transcribeAudio(path: result, appLocale: appLocale)
+                    }
+                    self.transcribeDisposable = (signal
+                    |> deliverOnMainQueue).startStrict(next: { [weak self] result in
+                        guard let strongSelf = self, let item = strongSelf.item else {
+                            return
+                        }
+                        if let result = result {
+                            let _ = item.context.engine.messages.storeLocallyTranscribedAudio(messageId: item.message.id, text: result.text, isFinal: result.isFinal, error: nil).startStandalone()
+                        } else {
+                            strongSelf.audioTranscriptionState = .collapsed
+                            strongSelf.requestUpdateLayout(true)
+                        }
+                    }, completed: { [weak self] in
+                        guard let strongSelf = self else {
+                            return
+                        }
+                        strongSelf.transcribeDisposable?.dispose()
+                        strongSelf.transcribeDisposable = nil
+                    })
+                } else {
+                    self.transcribeDisposable = (item.context.engine.messages.transcribeAudio(messageId: item.message.id)
+                    |> deliverOnMainQueue).startStrict(next: { [weak self] result in
+                        guard let strongSelf = self else {
+                            return
+                        }
+                        strongSelf.transcribeDisposable?.dispose()
+                        strongSelf.transcribeDisposable = nil
+                        
+                        if let item = strongSelf.item, !jokerVoiceToTextEnabled() && !item.associatedData.isPremium && !item.associatedData.alwaysDisplayTranscribeButton.providedByGroupBoost {
+                            Queue.mainQueue().after(0.1, {
+                                let _ = strongSelf.presentAudioTranscriptionTooltip(finished: true)
+                            })
+                        }
+                    })
+                }
             }
         }
         
@@ -1977,7 +2037,7 @@ public class ChatMessageInteractiveInstantVideoNode: ASDisplayNode {
     }
     
     private func presentAudioTranscriptionTooltip(finished: Bool) -> Bool {
-        guard let item = self.item, !item.associatedData.isPremium else {
+        guard let item = self.item, !jokerVoiceToTextEnabled() && !item.associatedData.isPremium else {
             return false
         }
         

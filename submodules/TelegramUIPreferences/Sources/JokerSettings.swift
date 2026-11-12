@@ -35,6 +35,9 @@ public struct JokerSettings: Codable, Equatable {
     // ميزة 9: تسجيل المكالمات المحلية (زر دائري في شاشة المكالمة)
     public var callRecording: Bool
 
+    // ميزة 10: تحويل الرسائل الصوتية إلى نص (ميزة تيليجرام بريميوم — مفعلة مجاناً على الجهاز)
+    public var voiceToText: Bool
+
     public static var defaultSettings: JokerSettings {
         return JokerSettings(
             autoSaveSelfDestructingMedia: false,
@@ -46,7 +49,8 @@ public struct JokerSettings: Codable, Equatable {
             freezeLastSeen: false,
             bypassCopyProtection: false,
             storyStealthMode: false,
-            callRecording: true
+            callRecording: true,
+            voiceToText: true
         )
     }
     
@@ -59,7 +63,9 @@ public struct JokerSettings: Codable, Equatable {
          freezeLastSeen: Bool = false,
          bypassCopyProtection: Bool = false,
          storyStealthMode: Bool = false,
-         callRecording: Bool = true) {
+         callRecording: Bool = true,
+         voiceToText: Bool = true) {
+        self.voiceToText = voiceToText
         self.callRecording = callRecording
         self.storyStealthMode = storyStealthMode
         self.autoSaveSelfDestructingMedia = autoSaveSelfDestructingMedia
@@ -84,6 +90,7 @@ public struct JokerSettings: Codable, Equatable {
         self.bypassCopyProtection = try container.decodeIfPresent(Bool.self, forKey: "bypassCopyProtection") ?? false
         self.storyStealthMode = try container.decodeIfPresent(Bool.self, forKey: "storyStealthMode") ?? false
         self.callRecording = try container.decodeIfPresent(Bool.self, forKey: "callRecording") ?? true
+        self.voiceToText = try container.decodeIfPresent(Bool.self, forKey: "voiceToText") ?? true
     }
     
     public func encode(to encoder: Encoder) throws {
@@ -98,6 +105,7 @@ public struct JokerSettings: Codable, Equatable {
         try container.encode(self.bypassCopyProtection, forKey: "bypassCopyProtection")
         try container.encode(self.storyStealthMode, forKey: "storyStealthMode")
         try container.encode(self.callRecording, forKey: "callRecording")
+        try container.encode(self.voiceToText, forKey: "voiceToText")
     }
     
     public static func ==(lhs: JokerSettings, rhs: JokerSettings) -> Bool {
@@ -111,47 +119,52 @@ public struct JokerSettings: Codable, Equatable {
             && lhs.bypassCopyProtection == rhs.bypassCopyProtection
             && lhs.storyStealthMode == rhs.storyStealthMode
             && lhs.callRecording == rhs.callRecording
+            && lhs.voiceToText == rhs.voiceToText
     }
     
     // دوال التحديث لكل ميزة على حدة
     public func withUpdatedAutoSaveSelfDestructingMedia(_ value: Bool) -> JokerSettings {
-        return JokerSettings(autoSaveSelfDestructingMedia: value, allow100Accounts: self.allow100Accounts, ghostMode: self.ghostMode, forcePremiumTranslation: self.forcePremiumTranslation, keepDeletedMessages: self.keepDeletedMessages, requireChannelSubscription: self.requireChannelSubscription, freezeLastSeen: self.freezeLastSeen, bypassCopyProtection: self.bypassCopyProtection, storyStealthMode: self.storyStealthMode, callRecording: self.callRecording)
+        return JokerSettings(autoSaveSelfDestructingMedia: value, allow100Accounts: self.allow100Accounts, ghostMode: self.ghostMode, forcePremiumTranslation: self.forcePremiumTranslation, keepDeletedMessages: self.keepDeletedMessages, requireChannelSubscription: self.requireChannelSubscription, freezeLastSeen: self.freezeLastSeen, bypassCopyProtection: self.bypassCopyProtection, storyStealthMode: self.storyStealthMode, callRecording: self.callRecording, voiceToText: self.voiceToText)
     }
     
     public func withUpdatedAllow100Accounts(_ value: Bool) -> JokerSettings {
-        return JokerSettings(autoSaveSelfDestructingMedia: self.autoSaveSelfDestructingMedia, allow100Accounts: value, ghostMode: self.ghostMode, forcePremiumTranslation: self.forcePremiumTranslation, keepDeletedMessages: self.keepDeletedMessages, requireChannelSubscription: self.requireChannelSubscription, freezeLastSeen: self.freezeLastSeen, bypassCopyProtection: self.bypassCopyProtection, storyStealthMode: self.storyStealthMode, callRecording: self.callRecording)
+        return JokerSettings(autoSaveSelfDestructingMedia: self.autoSaveSelfDestructingMedia, allow100Accounts: value, ghostMode: self.ghostMode, forcePremiumTranslation: self.forcePremiumTranslation, keepDeletedMessages: self.keepDeletedMessages, requireChannelSubscription: self.requireChannelSubscription, freezeLastSeen: self.freezeLastSeen, bypassCopyProtection: self.bypassCopyProtection, storyStealthMode: self.storyStealthMode, callRecording: self.callRecording, voiceToText: self.voiceToText)
     }
     
     public func withUpdatedGhostMode(_ value: Bool) -> JokerSettings {
-        return JokerSettings(autoSaveSelfDestructingMedia: self.autoSaveSelfDestructingMedia, allow100Accounts: self.allow100Accounts, ghostMode: value, forcePremiumTranslation: self.forcePremiumTranslation, keepDeletedMessages: self.keepDeletedMessages, requireChannelSubscription: self.requireChannelSubscription, freezeLastSeen: self.freezeLastSeen, bypassCopyProtection: self.bypassCopyProtection, storyStealthMode: self.storyStealthMode, callRecording: self.callRecording)
+        return JokerSettings(autoSaveSelfDestructingMedia: self.autoSaveSelfDestructingMedia, allow100Accounts: self.allow100Accounts, ghostMode: value, forcePremiumTranslation: self.forcePremiumTranslation, keepDeletedMessages: self.keepDeletedMessages, requireChannelSubscription: self.requireChannelSubscription, freezeLastSeen: self.freezeLastSeen, bypassCopyProtection: self.bypassCopyProtection, storyStealthMode: self.storyStealthMode, callRecording: self.callRecording, voiceToText: self.voiceToText)
     }
     
     public func withUpdatedForcePremiumTranslation(_ value: Bool) -> JokerSettings {
-        return JokerSettings(autoSaveSelfDestructingMedia: self.autoSaveSelfDestructingMedia, allow100Accounts: self.allow100Accounts, ghostMode: self.ghostMode, forcePremiumTranslation: value, keepDeletedMessages: self.keepDeletedMessages, requireChannelSubscription: self.requireChannelSubscription, freezeLastSeen: self.freezeLastSeen, bypassCopyProtection: self.bypassCopyProtection, storyStealthMode: self.storyStealthMode, callRecording: self.callRecording)
+        return JokerSettings(autoSaveSelfDestructingMedia: self.autoSaveSelfDestructingMedia, allow100Accounts: self.allow100Accounts, ghostMode: self.ghostMode, forcePremiumTranslation: value, keepDeletedMessages: self.keepDeletedMessages, requireChannelSubscription: self.requireChannelSubscription, freezeLastSeen: self.freezeLastSeen, bypassCopyProtection: self.bypassCopyProtection, storyStealthMode: self.storyStealthMode, callRecording: self.callRecording, voiceToText: self.voiceToText)
     }
     
     public func withUpdatedKeepDeletedMessages(_ value: Bool) -> JokerSettings {
-        return JokerSettings(autoSaveSelfDestructingMedia: self.autoSaveSelfDestructingMedia, allow100Accounts: self.allow100Accounts, ghostMode: self.ghostMode, forcePremiumTranslation: self.forcePremiumTranslation, keepDeletedMessages: value, requireChannelSubscription: self.requireChannelSubscription, freezeLastSeen: self.freezeLastSeen, bypassCopyProtection: self.bypassCopyProtection, storyStealthMode: self.storyStealthMode, callRecording: self.callRecording)
+        return JokerSettings(autoSaveSelfDestructingMedia: self.autoSaveSelfDestructingMedia, allow100Accounts: self.allow100Accounts, ghostMode: self.ghostMode, forcePremiumTranslation: self.forcePremiumTranslation, keepDeletedMessages: value, requireChannelSubscription: self.requireChannelSubscription, freezeLastSeen: self.freezeLastSeen, bypassCopyProtection: self.bypassCopyProtection, storyStealthMode: self.storyStealthMode, callRecording: self.callRecording, voiceToText: self.voiceToText)
     }
     
     public func withUpdatedRequireChannelSubscription(_ value: Bool) -> JokerSettings {
-        return JokerSettings(autoSaveSelfDestructingMedia: self.autoSaveSelfDestructingMedia, allow100Accounts: self.allow100Accounts, ghostMode: self.ghostMode, forcePremiumTranslation: self.forcePremiumTranslation, keepDeletedMessages: self.keepDeletedMessages, requireChannelSubscription: value, freezeLastSeen: self.freezeLastSeen, bypassCopyProtection: self.bypassCopyProtection, storyStealthMode: self.storyStealthMode, callRecording: self.callRecording)
+        return JokerSettings(autoSaveSelfDestructingMedia: self.autoSaveSelfDestructingMedia, allow100Accounts: self.allow100Accounts, ghostMode: self.ghostMode, forcePremiumTranslation: self.forcePremiumTranslation, keepDeletedMessages: self.keepDeletedMessages, requireChannelSubscription: value, freezeLastSeen: self.freezeLastSeen, bypassCopyProtection: self.bypassCopyProtection, storyStealthMode: self.storyStealthMode, callRecording: self.callRecording, voiceToText: self.voiceToText)
     }
     
     public func withUpdatedFreezeLastSeen(_ value: Bool) -> JokerSettings {
-        return JokerSettings(autoSaveSelfDestructingMedia: self.autoSaveSelfDestructingMedia, allow100Accounts: self.allow100Accounts, ghostMode: self.ghostMode, forcePremiumTranslation: self.forcePremiumTranslation, keepDeletedMessages: self.keepDeletedMessages, requireChannelSubscription: self.requireChannelSubscription, freezeLastSeen: value, bypassCopyProtection: self.bypassCopyProtection, storyStealthMode: self.storyStealthMode, callRecording: self.callRecording)
+        return JokerSettings(autoSaveSelfDestructingMedia: self.autoSaveSelfDestructingMedia, allow100Accounts: self.allow100Accounts, ghostMode: self.ghostMode, forcePremiumTranslation: self.forcePremiumTranslation, keepDeletedMessages: self.keepDeletedMessages, requireChannelSubscription: self.requireChannelSubscription, freezeLastSeen: value, bypassCopyProtection: self.bypassCopyProtection, storyStealthMode: self.storyStealthMode, callRecording: self.callRecording, voiceToText: self.voiceToText)
     }
     
     public func withUpdatedBypassCopyProtection(_ value: Bool) -> JokerSettings {
-        return JokerSettings(autoSaveSelfDestructingMedia: self.autoSaveSelfDestructingMedia, allow100Accounts: self.allow100Accounts, ghostMode: self.ghostMode, forcePremiumTranslation: self.forcePremiumTranslation, keepDeletedMessages: self.keepDeletedMessages, requireChannelSubscription: self.requireChannelSubscription, freezeLastSeen: self.freezeLastSeen, bypassCopyProtection: value, storyStealthMode: self.storyStealthMode, callRecording: self.callRecording)
+        return JokerSettings(autoSaveSelfDestructingMedia: self.autoSaveSelfDestructingMedia, allow100Accounts: self.allow100Accounts, ghostMode: self.ghostMode, forcePremiumTranslation: self.forcePremiumTranslation, keepDeletedMessages: self.keepDeletedMessages, requireChannelSubscription: self.requireChannelSubscription, freezeLastSeen: self.freezeLastSeen, bypassCopyProtection: value, storyStealthMode: self.storyStealthMode, callRecording: self.callRecording, voiceToText: self.voiceToText)
     }
 
     public func withUpdatedStoryStealthMode(_ value: Bool) -> JokerSettings {
-        return JokerSettings(autoSaveSelfDestructingMedia: self.autoSaveSelfDestructingMedia, allow100Accounts: self.allow100Accounts, ghostMode: self.ghostMode, forcePremiumTranslation: self.forcePremiumTranslation, keepDeletedMessages: self.keepDeletedMessages, requireChannelSubscription: self.requireChannelSubscription, freezeLastSeen: self.freezeLastSeen, bypassCopyProtection: self.bypassCopyProtection, storyStealthMode: value, callRecording: self.callRecording)
+        return JokerSettings(autoSaveSelfDestructingMedia: self.autoSaveSelfDestructingMedia, allow100Accounts: self.allow100Accounts, ghostMode: self.ghostMode, forcePremiumTranslation: self.forcePremiumTranslation, keepDeletedMessages: self.keepDeletedMessages, requireChannelSubscription: self.requireChannelSubscription, freezeLastSeen: self.freezeLastSeen, bypassCopyProtection: self.bypassCopyProtection, storyStealthMode: value, callRecording: self.callRecording, voiceToText: self.voiceToText)
     }
 
     public func withUpdatedCallRecording(_ value: Bool) -> JokerSettings {
-        return JokerSettings(autoSaveSelfDestructingMedia: self.autoSaveSelfDestructingMedia, allow100Accounts: self.allow100Accounts, ghostMode: self.ghostMode, forcePremiumTranslation: self.forcePremiumTranslation, keepDeletedMessages: self.keepDeletedMessages, requireChannelSubscription: self.requireChannelSubscription, freezeLastSeen: self.freezeLastSeen, bypassCopyProtection: self.bypassCopyProtection, storyStealthMode: self.storyStealthMode, callRecording: value)
+        return JokerSettings(autoSaveSelfDestructingMedia: self.autoSaveSelfDestructingMedia, allow100Accounts: self.allow100Accounts, ghostMode: self.ghostMode, forcePremiumTranslation: self.forcePremiumTranslation, keepDeletedMessages: self.keepDeletedMessages, requireChannelSubscription: self.requireChannelSubscription, freezeLastSeen: self.freezeLastSeen, bypassCopyProtection: self.bypassCopyProtection, storyStealthMode: self.storyStealthMode, callRecording: value, voiceToText: self.voiceToText)
+    }
+
+    public func withUpdatedVoiceToText(_ value: Bool) -> JokerSettings {
+        return JokerSettings(autoSaveSelfDestructingMedia: self.autoSaveSelfDestructingMedia, allow100Accounts: self.allow100Accounts, ghostMode: self.ghostMode, forcePremiumTranslation: self.forcePremiumTranslation, keepDeletedMessages: self.keepDeletedMessages, requireChannelSubscription: self.requireChannelSubscription, freezeLastSeen: self.freezeLastSeen, bypassCopyProtection: self.bypassCopyProtection, storyStealthMode: self.storyStealthMode, callRecording: self.callRecording, voiceToText: value)
     }
 }
 
@@ -178,6 +191,7 @@ public func updateJokerSettingsInteractively(accountManager: AccountManager<Tele
             UserDefaults.standard.set(newSettings.bypassCopyProtection, forKey: "joker_bypass_copy_protection")
             UserDefaults.standard.set(newSettings.storyStealthMode, forKey: "joker_story_stealth")
             UserDefaults.standard.set(newSettings.callRecording, forKey: "joker_call_recording")
+            UserDefaults.standard.set(newSettings.voiceToText, forKey: "joker_voice_to_text")
             UserDefaults.standard.synchronize()
             
             return SharedPreferencesEntry(newSettings)
