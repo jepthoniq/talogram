@@ -193,6 +193,46 @@ jobs:
             --target //submodules/TelegramUI/Components/Chat/ChatMessageBubbleItemNode:ChatMessageBubbleItemNode \
             2>&1 | tee check-chatmessagebubbleitemnode.log
 
+      - name: Restore Bazel disk cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/telegram-bazel-cache
+          key: telegram-bazel-cache-${{ runner.os }}-${{ hashFiles('versions.json', 'MODULE.bazel', 'MODULE.bazel.lock') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            telegram-bazel-cache-${{ runner.os }}-${{ hashFiles('versions.json', 'MODULE.bazel', 'MODULE.bazel.lock') }}-
+            telegram-bazel-cache-${{ runner.os }}-
+
+      - name: Compile CallScreen
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          bash .github/scripts/make-with-network-retry.sh \\
+            python3 build-system/Make/Make.py \\
+            --cacheDir "$HOME/telegram-bazel-cache" \\
+            build \\
+            --configurationPath build-system/appstore-configuration.json \\
+            --codesigningInformationPath build/verification-codesigning \\
+            --buildNumber 1 \\
+            --configuration debug_arm64 \\
+            --continueOnError \\
+            --target //submodules/TelegramUI/Components/Calls/CallScreen:CallScreen \\
+            2>&1 | tee check-callscreen.log
+
+      - name: Compile TelegramCallsUI
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          bash .github/scripts/make-with-network-retry.sh \\
+            python3 build-system/Make/Make.py \\
+            --cacheDir "$HOME/telegram-bazel-cache" \\
+            build \\
+            --configurationPath build-system/appstore-configuration.json \\
+            --codesigningInformationPath build/verification-codesigning \\
+            --buildNumber 1 \\
+            --configuration debug_arm64 \\
+            --continueOnError \\
+            --target //submodules/TelegramCallsUI:TelegramCallsUI \\
+            2>&1 | tee check-telegramcallsui.log
       - name: Publish errors to summary
         if: always()
         run: |
@@ -231,6 +271,13 @@ jobs:
 
       # Save even when the check failed, so archives downloaded on this runner
       # are reused by the next run instead of being fetched from GitHub again.
+      - name: Save Bazel disk cache
+        if: always()
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ~/telegram-bazel-cache
+          key: telegram-bazel-cache-${{ runner.os }}-${{ hashFiles('versions.json', 'MODULE.bazel', 'MODULE.bazel.lock') }}-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Save Bazel repository cache
         if: always()
         continue-on-error: true
