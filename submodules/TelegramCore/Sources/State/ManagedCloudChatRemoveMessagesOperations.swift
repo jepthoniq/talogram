@@ -259,6 +259,9 @@ private func removeMessages(postbox: Postbox, network: Network, stateManager: Ac
 private func removeChat(transaction: Transaction, postbox: Postbox, network: Network, stateManager: AccountStateManager, peer: Peer, operation: CloudChatRemoveChatOperation) -> Signal<Void, NoError> {
     if peer.id.namespace == Namespaces.Peer.CloudChannel {
         if let inputChannel = apiInputChannel(peer) {
+            // Joker Mod: detect leaving the required subscription channel so
+            // every Joker feature can be switched off right away.
+            let isJokerSubscriptionChannel = JokerCoreHooks.isSubscriptionChannel(peer)
             let signal: Signal<Api.Updates, MTRpcError>
             if operation.deleteGloballyIfPossible {
                 signal = network.request(Api.functions.channels.deleteChannel(channel: inputChannel))
@@ -289,6 +292,9 @@ private func removeChat(transaction: Transaction, postbox: Postbox, network: Net
             |> mapToSignal { updates, _ in
                 if let updates = updates {
                     stateManager.addUpdates(updates)
+                    if isJokerSubscriptionChannel {
+                        JokerCoreHooks.clearSubscriptionStatus()
+                    }
                 }
                 return .complete()
             }

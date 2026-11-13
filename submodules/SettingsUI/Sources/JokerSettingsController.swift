@@ -22,6 +22,8 @@ private final class JokerSettingsControllerArguments {
     let updateVoiceToText: (Bool) -> Void
     let updateSecretChatTools: (Bool) -> Void
     let openBusinessQuickReplies: () -> Void
+    let openSubscriptionChannel: () -> Void
+    let checkSubscription: () -> Void
 
     init(
         updateAutoSaveMedia: @escaping (Bool) -> Void,
@@ -35,7 +37,9 @@ private final class JokerSettingsControllerArguments {
         updateCallRecording: @escaping (Bool) -> Void,
         updateVoiceToText: @escaping (Bool) -> Void,
         updateSecretChatTools: @escaping (Bool) -> Void,
-        openBusinessQuickReplies: @escaping () -> Void
+        openBusinessQuickReplies: @escaping () -> Void,
+        openSubscriptionChannel: @escaping () -> Void,
+        checkSubscription: @escaping () -> Void
     ) {
         self.updateAutoSaveMedia = updateAutoSaveMedia
         self.updateAllow100Accounts = updateAllow100Accounts
@@ -49,10 +53,13 @@ private final class JokerSettingsControllerArguments {
         self.updateVoiceToText = updateVoiceToText
         self.updateSecretChatTools = updateSecretChatTools
         self.openBusinessQuickReplies = openBusinessQuickReplies
+        self.openSubscriptionChannel = openSubscriptionChannel
+        self.checkSubscription = checkSubscription
     }
 }
 
 private enum JokerSettingsControllerSection: Int32 {
+    case subscription
     case features
     case business
     case credits
@@ -63,6 +70,11 @@ private func jokerLocalized(_ presentationData: PresentationData, _ arValue: Str
 }
 
 private enum JokerSettingsControllerEntry: ItemListNodeEntry {
+    case subscriptionHeader(String)
+    case subscriptionText(String)
+    case subscriptionJoin(String)
+    case subscriptionCheckAgain(String)
+
     case featuresHeader(String)
     case autoSaveMediaToggle(String, String, Bool)
     case allow100AccountsToggle(String, String, Bool)
@@ -84,6 +96,8 @@ private enum JokerSettingsControllerEntry: ItemListNodeEntry {
 
     var section: ItemListSectionId {
         switch self {
+        case .subscriptionHeader, .subscriptionText, .subscriptionJoin, .subscriptionCheckAgain:
+            return JokerSettingsControllerSection.subscription.rawValue
         case .featuresHeader, .autoSaveMediaToggle, .allow100AccountsToggle, .ghostModeToggle, .forcePremiumTranslationToggle, .freezeLastSeenToggle, .bypassCopyProtectionToggle, .keepDeletedMessagesToggle, .storyStealthModeToggle, .callRecordingToggle, .voiceToTextToggle, .secretChatToolsToggle:
             return JokerSettingsControllerSection.features.rawValue
         case .businessHeader, .businessQuickReplies:
@@ -95,6 +109,14 @@ private enum JokerSettingsControllerEntry: ItemListNodeEntry {
 
     var stableId: Int32 {
         switch self {
+        case .subscriptionHeader:
+            return 40
+        case .subscriptionText:
+            return 41
+        case .subscriptionJoin:
+            return 42
+        case .subscriptionCheckAgain:
+            return 43
         case .featuresHeader:
             return 10
         case .autoSaveMediaToggle:
@@ -137,6 +159,18 @@ private enum JokerSettingsControllerEntry: ItemListNodeEntry {
     func item(presentationData: ItemListPresentationData, arguments: Any) -> ListViewItem {
         let arguments = arguments as! JokerSettingsControllerArguments
         switch self {
+        case let .subscriptionHeader(title):
+            return ItemListSectionHeaderItem(presentationData: presentationData, text: title, sectionId: self.section)
+        case let .subscriptionText(text):
+            return ItemListTextItem(presentationData: presentationData, text: .markdown(text), sectionId: self.section)
+        case let .subscriptionJoin(title):
+            return ItemListActionItem(presentationData: presentationData, systemStyle: .glass, title: title, kind: .generic, alignment: .center, sectionId: self.section, style: .blocks, action: {
+                arguments.openSubscriptionChannel()
+            })
+        case let .subscriptionCheckAgain(title):
+            return ItemListActionItem(presentationData: presentationData, systemStyle: .glass, title: title, kind: .neutral, alignment: .center, sectionId: self.section, style: .blocks, action: {
+                arguments.checkSubscription()
+            })
         case let .featuresHeader(title):
             return ItemListSectionHeaderItem(presentationData: presentationData, text: title, sectionId: self.section)
         case let .autoSaveMediaToggle(title, text, value):
@@ -197,8 +231,17 @@ private enum JokerSettingsControllerEntry: ItemListNodeEntry {
     }
 }
 
-private func jokerSettingsControllerEntries(presentationData: PresentationData, settings: JokerSettings) -> [JokerSettingsControllerEntry] {
+private func jokerSettingsControllerEntries(presentationData: PresentationData, settings: JokerSettings, isSubscribed: Bool) -> [JokerSettingsControllerEntry] {
     var entries: [JokerSettingsControllerEntry] = []
+
+    // لا تُفتح القائمة إطلاقاً قبل الاشتراك في القناة: تظهر شاشة الاشتراك فقط.
+    if JokerCoreHooks.requireSubscriptionGateEnabled() && !isSubscribed {
+        entries.append(.subscriptionHeader(jokerLocalized(presentationData, "الاشتراك مطلوب", "Subscription Required")))
+        entries.append(.subscriptionText(jokerLocalized(presentationData, "للوصول إلى مميزات الجوكر يجب الاشتراك في قناة **@aljokeruserbot**.\n\nعند مغادرة القناة يتم إيقاف جميع المميزات وإلغاء تفعيلها تلقائياً، ولن تفتح القائمة حتى تعود للاشتراك.", "To access Joker features you must join **@aljokeruserbot**.\n\nIf you leave the channel, every feature is disabled and switched off automatically, and this menu stays locked until you subscribe again.")))
+        entries.append(.subscriptionJoin(jokerLocalized(presentationData, "انضم إلى قناة @aljokeruserbot", "Join @aljokeruserbot")))
+        entries.append(.subscriptionCheckAgain(jokerLocalized(presentationData, "تحقق من الاشتراك", "Check Subscription")))
+        return entries
+    }
 
     entries.append(.featuresHeader(jokerLocalized(presentationData, "مميزات الجوكر", "Joker Features")))
     entries.append(.autoSaveMediaToggle(jokerLocalized(presentationData, "حفظ الوسائط ذاتية التدمير تلقائياً", "Auto Save Self-Destructing Media"), jokerLocalized(presentationData, "حفظ الصور والفيديوهات والرسائل الصوتية ذاتية التدمير في الرسائل المحفوظة تلقائياً عند فتحها", "Automatically save self-destructing photos, videos, and voice messages to Saved Messages when opened."), settings.autoSaveSelfDestructingMedia))
@@ -224,6 +267,36 @@ private func jokerSettingsControllerEntries(presentationData: PresentationData, 
 
 public func jokerSettingsController(context: AccountContext, isTab: Bool = false) -> ViewController {
     var settingsController: ViewController! = nil
+    let currentPresentationData = context.sharedContext.currentPresentationData.with { $0 }
+
+    // يتحقق من العضوية عبر API في كل مرة تُفتح فيها الشاشة (تبويب أو إعدادات).
+    // عند فشل التحقق تُطفأ كل المميزات وتُلغى تفعيلاتها، وتتحول القائمة إلى
+    // شاشة "الاشتراك مطلوب" تلقائياً عبر JokerChannelSubscriptionState.
+    let verifySubscription: (Bool) -> Void = { presentFailure in
+        guard JokerCoreHooks.requireSubscriptionGateEnabled() else {
+            return
+        }
+        let _ = (JokerCoreHooks.checkChannelSubscription(network: context.account.network, username: JokerCoreHooks.subscriptionChannelUsername)
+        |> deliverOnMainQueue).startStandalone(next: { isSubscribed in
+            JokerChannelSubscriptionManager.saveSubscriptionStatus(isSubscribed)
+            if isSubscribed {
+                // أعِد مزامنة مفاتيح UserDefaults مع الإعدادات المحفوظة بعد عودة الاشتراك.
+                let _ = updateJokerSettingsInteractively(accountManager: context.sharedContext.accountManager, { $0 }).start()
+            } else {
+                let _ = resetJokerFeatureToggles(accountManager: context.sharedContext.accountManager).start()
+                if presentFailure, let settingsController {
+                    let alert = UIAlertController(
+                        title: jokerLocalized(currentPresentationData, "لم يتم العثور على اشتراك", "Subscription Not Found"),
+                        message: jokerLocalized(currentPresentationData, "تأكد من انضمامك إلى قناة @aljokeruserbot ثم حاول مرة أخرى.", "Make sure you joined @aljokeruserbot, then try again."),
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: jokerLocalized(currentPresentationData, "حسناً", "OK"), style: .default, handler: nil))
+                    settingsController.present(alert, animated: true, completion: nil)
+                }
+            }
+        })
+    }
+
     let arguments = JokerSettingsControllerArguments(
         updateAutoSaveMedia: { value in
             let _ = updateJokerSettingsInteractively(accountManager: context.sharedContext.accountManager, { $0.withUpdatedAutoSaveSelfDestructingMedia(value) }).start()
@@ -267,28 +340,41 @@ public func jokerSettingsController(context: AccountContext, isTab: Bool = false
             }
             let controller = JokerLocalQuickRepliesController(context: context)
             settingsController.push(controller)
+        },
+        openSubscriptionChannel: {
+            guard let settingsController else {
+                return
+            }
+            context.sharedContext.openExternalUrl(context: context, urlContext: .generic, url: JokerChannelSubscriptionManager.channelLink, forceExternal: false, presentationData: context.sharedContext.currentPresentationData.with { $0 }, navigationController: settingsController.navigationController as? NavigationController, dismissInput: {})
+        },
+        checkSubscription: {
+            verifySubscription(true)
         }
     )
 
     let signal = combineLatest(queue: .mainQueue(),
         context.sharedContext.presentationData,
-        getJokerSettings(accountManager: context.sharedContext.accountManager)
+        getJokerSettings(accountManager: context.sharedContext.accountManager),
+        JokerChannelSubscriptionState.shared.signal
     )
     |> deliverOnMainQueue
-    |> map { presentationData, jokerSettings -> (ItemListControllerState, (ItemListNodeState, Any)) in
+    |> map { presentationData, jokerSettings, isSubscribed -> (ItemListControllerState, (ItemListNodeState, Any)) in
         var presentationData = presentationData
 
         let updatedTheme = presentationData.theme.withModalBlocksBackground()
         presentationData = presentationData.withUpdated(theme: updatedTheme)
 
         let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text(jokerLocalized(presentationData, "إعدادات الجوكر", "Joker Settings")), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: isTab ? nil : ItemListBackButton(title: presentationData.strings.Common_Back))
-        let listState = ItemListNodeState(presentationData: ItemListPresentationData(presentationData), entries: jokerSettingsControllerEntries(presentationData: presentationData, settings: jokerSettings), style: .blocks, animateChanges: true)
+        let listState = ItemListNodeState(presentationData: ItemListPresentationData(presentationData), entries: jokerSettingsControllerEntries(presentationData: presentationData, settings: jokerSettings, isSubscribed: isSubscribed), style: .blocks, animateChanges: true)
 
         return (controllerState, (listState, arguments))
     }
 
     let controller = ItemListController(context: context, state: signal)
     controller.navigationPresentation = isTab ? .default : .modal
+    controller.didAppear = { _ in
+        verifySubscription(false)
+    }
     settingsController = controller
 
     return controller

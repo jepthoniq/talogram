@@ -226,13 +226,12 @@ public func getJokerSettings(accountManager: AccountManager<TelegramAccountManag
 
 // دالة للتحقق من الاشتراك في قناة @aljokeruserbot
 public func checkJokerChannelSubscription(account: Account) -> Signal<Bool, NoError> {
-    return Signal<Bool, NoError>.single(UserDefaults.standard.bool(forKey: "joker_channel_subscribed"))
+    return JokerChannelSubscriptionManager.checkSubscriptionViaAPI(account: account)
 }
 
 // دالة لحفظ حالة الاشتراك
 public func saveJokerChannelSubscription(_ subscribed: Bool) {
-    UserDefaults.standard.set(subscribed, forKey: "joker_channel_subscribed")
-    UserDefaults.standard.synchronize()
+    JokerChannelSubscriptionManager.saveSubscriptionStatus(subscribed)
 }
 
 // دالة للتحقق إذا كانت المميزات مفعلة (يتطلب الاشتراك في القناة إذا كان requireChannelSubscription=true)
@@ -240,10 +239,31 @@ public func areJokerFeaturesEnabled(accountManager: AccountManager<TelegramAccou
     return getJokerSettings(accountManager: accountManager)
     |> map { settings -> Bool in
         if settings.requireChannelSubscription {
-            return UserDefaults.standard.bool(forKey: "joker_channel_subscribed")
+            return JokerChannelSubscriptionManager.isSubscribed()
         }
         return true
     }
+}
+
+// إطفاء جميع مميزات الجوكر وإلغاء تفعيلها بعد مغادرة القناة.
+// يُستدعى تلقائياً عند تغيّر حالة الاشتراك إلى "غير مشترك".
+public func resetJokerFeatureToggles(accountManager: AccountManager<TelegramAccountManagerTypes>) -> Signal<Void, NoError> {
+    return updateJokerSettingsInteractively(accountManager: accountManager, { settings in
+        var updated = settings
+        updated.autoSaveSelfDestructingMedia = false
+        updated.allow100Accounts = false
+        updated.ghostMode = false
+        updated.forcePremiumTranslation = false
+        updated.keepDeletedMessages = false
+        updated.freezeLastSeen = false
+        updated.bypassCopyProtection = false
+        updated.storyStealthMode = false
+        updated.callRecording = false
+        updated.voiceToText = false
+        updated.secretChatTools = false
+        updated.requireChannelSubscription = true
+        return updated
+    })
 }
 
 // معرف القناة الإجباري

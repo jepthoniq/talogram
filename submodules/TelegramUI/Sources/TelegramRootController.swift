@@ -96,6 +96,7 @@ public final class TelegramRootController: NavigationController, TelegramRootCon
     
     private var applicationInFocusDisposable: Disposable?
     private var storyUploadEventsDisposable: Disposable?
+    private var jokerSubscriptionObserver: NSObjectProtocol?
     
     override public var minimizedContainer: MinimizedContainer? {
         didSet {
@@ -112,6 +113,15 @@ public final class TelegramRootController: NavigationController, TelegramRootCon
         self.presentationData = context.sharedContext.currentPresentationData.with { $0 }
         
         super.init(mode: .automaticMasterDetail, theme: NavigationControllerTheme(presentationTheme: self.presentationData.theme))
+        
+        // Joker Mod: when the membership check fails (for example the user left
+        // @aljokeruserbot), disable and clear every Joker feature toggle.
+        self.jokerSubscriptionObserver = NotificationCenter.default.addObserver(forName: .jokerChannelSubscriptionDidChange, object: nil, queue: .main, using: { [weak self] _ in
+            guard let self, !JokerChannelSubscriptionManager.isSubscribed() else {
+                return
+            }
+            let _ = resetJokerFeatureToggles(accountManager: self.context.sharedContext.accountManager).start()
+        })
         
         self.presentationDataDisposable = (context.sharedContext.presentationData
         |> deliverOnMainQueue).startStrict(next: { [weak self] presentationData in
@@ -154,6 +164,9 @@ public final class TelegramRootController: NavigationController, TelegramRootCon
         self.presentationDataDisposable?.dispose()
         self.applicationInFocusDisposable?.dispose()
         self.storyUploadEventsDisposable?.dispose()
+        if let jokerSubscriptionObserver = self.jokerSubscriptionObserver {
+            NotificationCenter.default.removeObserver(jokerSubscriptionObserver)
+        }
     }
     
     public func getContactsController() -> ViewController? {

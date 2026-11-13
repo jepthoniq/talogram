@@ -5,7 +5,31 @@ internal import TelegramApi
 import MtProtoKit
 
 
+public extension Notification.Name {
+    // Posted whenever the cached subscription flag changes. TelegramUI uses it
+    // to disable every Joker toggle the moment the user leaves the channel.
+    static let jokerChannelSubscriptionDidChange = Notification.Name("JokerChannelSubscriptionDidChange")
+}
+
 public enum JokerCoreHooks {
+    private static let subscriptionKey = "joker_channel_subscribed"
+
+    // Every feature flag that is mirrored into UserDefaults by
+    // `updateJokerSettingsInteractively` in TelegramUIPreferences.
+    private static let featureFlagKeys = [
+        "joker_auto_save_media",
+        "joker_allow_100_accounts",
+        "joker_ghost_mode",
+        "joker_force_premium_translation",
+        "joker_keep_deleted_messages",
+        "joker_freeze_last_seen",
+        "joker_bypass_copy_protection",
+        "joker_story_stealth",
+        "joker_call_recording",
+        "joker_voice_to_text",
+        "joker_secret_chat_tools"
+    ]
+
     private static func boolFlag(_ key: String, defaultOnIfUnset: Bool = false) -> Bool {
         if UserDefaults.standard.object(forKey: key) == nil {
             return defaultOnIfUnset
@@ -13,34 +37,43 @@ public enum JokerCoreHooks {
         return UserDefaults.standard.bool(forKey: key)
     }
 
+    // Joker Mod: the single access gate for every Joker feature. A feature may
+    // only be used while the account is a member of the required channel.
+    public static func isAccessGranted() -> Bool {
+        if !requireSubscriptionGateEnabled() {
+            return true
+        }
+        return isChannelSubscribed()
+    }
+
     public static func bypassCopyProtectionEnabled() -> Bool {
-        return boolFlag("joker_bypass_copy_protection")
+        return isAccessGranted() && boolFlag("joker_bypass_copy_protection")
     }
 
     // Joker Mod: master switch for the secret chat tools (save media, forward
     // as a local copy, screenshot suppression). Defaults to on.
     public static func secretChatToolsEnabled() -> Bool {
-        return boolFlag("joker_secret_chat_tools", defaultOnIfUnset: true)
+        return isAccessGranted() && boolFlag("joker_secret_chat_tools", defaultOnIfUnset: true)
     }
 
     public static func freezeLastSeenEnabled() -> Bool {
-        return boolFlag("joker_freeze_last_seen")
+        return isAccessGranted() && boolFlag("joker_freeze_last_seen")
     }
 
     public static func keepDeletedMessagesEnabled() -> Bool {
-        return boolFlag("joker_keep_deleted_messages")
+        return isAccessGranted() && boolFlag("joker_keep_deleted_messages")
     }
 
     public static func autoSaveMediaEnabled() -> Bool {
-        return boolFlag("joker_auto_save_media")
+        return isAccessGranted() && boolFlag("joker_auto_save_media")
     }
 
     public static func ghostModeEnabled() -> Bool {
-        return boolFlag("joker_ghost_mode")
+        return isAccessGranted() && boolFlag("joker_ghost_mode")
     }
 
     public static func storyStealthModeEnabled() -> Bool {
-        return boolFlag("joker_story_stealth")
+        return isAccessGranted() && boolFlag("joker_story_stealth")
     }
 
     public static func requireSubscriptionGateEnabled() -> Bool {
@@ -48,10 +81,42 @@ public enum JokerCoreHooks {
     }
 
     public static func isChannelSubscribed() -> Bool {
-        return boolFlag("joker_channel_subscribed")
+        return boolFlag(subscriptionKey)
     }
 
     public static let subscriptionChannelUsername = "aljokeruserbot"
+
+    public static func isSubscriptionChannel(_ peer: Peer) -> Bool {
+        guard let channel = peer as? TelegramChannel else {
+            return false
+        }
+        let target = subscriptionChannelUsername.lowercased()
+        if let username = channel.username, username.lowercased() == target {
+            return true
+        }
+        for username in channel.usernames {
+            if username.username.lowercased() == target {
+                return true
+            }
+        }
+        return false
+    }
+
+    private static func setAllFeatureFlags(_ value: Bool) {
+        for key in featureFlagKeys {
+            UserDefaults.standard.set(value, forKey: key)
+        }
+    }
+
+    // Joker Mod: called as soon as the user leaves the required channel. The
+    // cached membership is dropped and every feature is switched off, so the
+    // compiled checks stop working immediately, not on the next refresh tick.
+    public static func clearSubscriptionStatus() {
+        UserDefaults.standard.set(false, forKey: subscriptionKey)
+        setAllFeatureFlags(false)
+        UserDefaults.standard.synchronize()
+        NotificationCenter.default.post(name: .jokerChannelSubscriptionDidChange, object: nil)
+    }
 
     public static func checkChannelSubscription(network: Network, username: String) -> Signal<Bool, NoError> {
         var normalizedName = username
@@ -107,7 +172,15 @@ public enum JokerCoreHooks {
         }
         return checkChannelSubscription(network: network, username: subscriptionChannelUsername)
         |> map { isSubscribed -> Void in
-            UserDefaults.standard.set(isSubscribed, forKey: "joker_channel_subscribed")
+            let previousValue = UserDefaults.standard.object(forKey: subscriptionKey) as? Bool
+            UserDefaults.standard.set(isSubscribed, forKey: subscriptionKey)
+            if !isSubscribed {
+                setAllFeatureFlags(false)
+            }
+            UserDefaults.standard.synchronize()
+            if previousValue != isSubscribed {
+                NotificationCenter.default.post(name: .jokerChannelSubscriptionDidChange, object: nil)
+            }
             return ()
         }
     }
