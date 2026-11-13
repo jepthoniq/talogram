@@ -289,9 +289,9 @@ final class CameraOutput: NSObject {
             let codecType: AVVideoCodecType = self.photoOutput.availablePhotoCodecTypes.contains(.hevc) ? .hevc : .jpeg
             settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: codecType])
             if #available(iOS 17.0, *) {
-                if !CameraPhotoSettingsSetMaxPhotoDimensions(settings, self.photoOutput.maxPhotoDimensions) {
-                    settings.isHighResolutionPhotoEnabled = self.photoOutput.isHighResolutionCaptureEnabled
-                }
+                // Leave the settings at their default dimensions if the output's
+                // value is invalid; AVFoundation would otherwise throw.
+                _ = CameraPhotoSettingsSetMaxPhotoDimensions(settings, self.photoOutput.maxPhotoDimensions)
             } else {
                 settings.isHighResolutionPhotoEnabled = self.photoOutput.isHighResolutionCaptureEnabled
             }
