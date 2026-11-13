@@ -241,6 +241,22 @@ jobs:
             --target //submodules/TelegramUI/Components/Chat/ChatMessageInteractiveInstantVideoNode:ChatMessageInteractiveInstantVideoNode \
             2>&1 | tee check-chatmessageinteractiveinstantvideonode.log
 
+      - name: Compile CameraLegacy
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          bash .github/scripts/make-with-network-retry.sh \
+            python3 build-system/Make/Make.py \
+            --cacheDir "$HOME/telegram-bazel-cache" \
+            build \
+            --configurationPath build-system/appstore-configuration.json \
+            --codesigningInformationPath build/verification-codesigning \
+            --buildNumber 1 \
+            --configuration debug_arm64 \
+            --continueOnError \
+            --target //submodules/Camera/CameraLegacy:CameraLegacy \
+            2>&1 | tee check-cameralegacy.log
+
       - name: Publish errors to summary
         if: always()
         run: |
