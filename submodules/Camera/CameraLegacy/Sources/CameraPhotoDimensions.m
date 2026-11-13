@@ -1,4 +1,4 @@
-#import "CameraPhotoDimensions.h"
+#import <CameraLegacyObjC/CameraPhotoDimensions.h>
 
 BOOL CameraPhotoOutputSetMaxPhotoDimensions(AVCapturePhotoOutput *output, CMVideoDimensions dimensions) {
     if (dimensions.width <= 0 || dimensions.height <= 0) {

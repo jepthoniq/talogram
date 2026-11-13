@@ -9,7 +9,7 @@ objc_library(
         "Sources/CameraPhotoDimensions.m",
     ],
     hdrs = [
-        "PublicHeaders/CameraPhotoDimensions.h",
+        "PublicHeaders/CameraLegacyObjC/CameraPhotoDimensions.h",
     ],
     includes = [
         "PublicHeaders",
