@@ -8,6 +8,7 @@ import Vision
 import VideoToolbox
 import TelegramCore
 import Camera
+import CameraLegacyObjC
 
 final class CameraOutput: NSObject {
     private struct RoundVideoFormatDescriptionCacheEntry {
@@ -159,7 +160,7 @@ final class CameraOutput: NSObject {
         self.hasHighResolutionPhoto = false
         if #available(iOS 17.0, *) {
             guard let format = device.videoDevice?.activeFormat, format.isHighPhotoQualitySupported, !format.supportedMaxPhotoDimensions.isEmpty else {
-                // iPhone XR / older cameras don't exercise the 17+ path reliably; keep the legacy flag only.
+                // The format exposes no high-quality photo dimensions: keep the legacy flag only.
                 if self.photoOutput.isHighResolutionCaptureEnabled {
                     self.photoOutput.isHighResolutionCaptureEnabled = false
                 }
@@ -168,9 +169,9 @@ final class CameraOutput: NSObject {
             let videoDimensions = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
             let supported = format.supportedMaxPhotoDimensions
             if let matching = supported.first(where: { $0.width == videoDimensions.width && $0.height == videoDimensions.height }) {
-                self.photoOutput.maxPhotoDimensions = matching
+                _ = CameraPhotoOutputSetMaxPhotoDimensions(self.photoOutput, matching)
             } else if let smallest = supported.min(by: { Int64($0.width) * Int64($0.height) < Int64($1.width) * Int64($1.height) }) {
-                self.photoOutput.maxPhotoDimensions = smallest
+                _ = CameraPhotoOutputSetMaxPhotoDimensions(self.photoOutput, smallest)
             }
         } else {
             if self.photoOutput.isHighResolutionCaptureEnabled {
@@ -185,7 +186,7 @@ final class CameraOutput: NSObject {
         }
         if #available(iOS 17.0, *) {
             guard let photoDimensions = device.photoDimensions, let format = device.videoDevice?.activeFormat, format.isHighPhotoQualitySupported, !format.supportedMaxPhotoDimensions.isEmpty else {
-                // Older devices (e.g., iPhone XR): keep the legacy capture flag, never call maxPhotoDimensions.
+                // The format exposes no high-quality photo dimensions: keep the legacy capture flag.
                 if self.photoOutput.isHighResolutionCaptureEnabled == false {
                     self.photoOutput.isHighResolutionCaptureEnabled = true
                 }
@@ -193,18 +194,18 @@ final class CameraOutput: NSObject {
                 return
             }
             let supported = format.supportedMaxPhotoDimensions
+            var applied = false
             if supported.contains(where: { $0.width == photoDimensions.width && $0.height == photoDimensions.height }) {
-                self.photoOutput.maxPhotoDimensions = photoDimensions
-                self.hasHighResolutionPhoto = true
+                applied = CameraPhotoOutputSetMaxPhotoDimensions(self.photoOutput, photoDimensions)
             } else if let smallest = supported.min(by: { Int64($0.width) * Int64($0.height) < Int64($1.width) * Int64($1.height) }) {
-                self.photoOutput.maxPhotoDimensions = smallest
-                self.hasHighResolutionPhoto = true
-            } else {
-                if self.photoOutput.isHighResolutionCaptureEnabled == false {
-                    self.photoOutput.isHighResolutionCaptureEnabled = true
-                }
-                self.hasHighResolutionPhoto = true
+                applied = CameraPhotoOutputSetMaxPhotoDimensions(self.photoOutput, smallest)
             }
+            if !applied && self.photoOutput.isHighResolutionCaptureEnabled == false {
+                // The output refused the dimensions (an unconnected output or a
+                // format mismatch): fall back to the legacy capture flag.
+                self.photoOutput.isHighResolutionCaptureEnabled = true
+            }
+            self.hasHighResolutionPhoto = true
         } else {
             if self.photoOutput.isHighResolutionCaptureEnabled == false {
                 self.photoOutput.isHighResolutionCaptureEnabled = true
@@ -288,7 +289,9 @@ final class CameraOutput: NSObject {
             let codecType: AVVideoCodecType = self.photoOutput.availablePhotoCodecTypes.contains(.hevc) ? .hevc : .jpeg
             settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: codecType])
             if #available(iOS 17.0, *) {
-                settings.maxPhotoDimensions = self.photoOutput.maxPhotoDimensions
+                if !CameraPhotoSettingsSetMaxPhotoDimensions(settings, self.photoOutput.maxPhotoDimensions) {
+                    settings.isHighResolutionPhotoEnabled = self.photoOutput.isHighResolutionCaptureEnabled
+                }
             } else {
                 settings.isHighResolutionPhotoEnabled = self.photoOutput.isHighResolutionCaptureEnabled
             }
