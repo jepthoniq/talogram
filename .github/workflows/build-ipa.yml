@@ -68,10 +68,26 @@ jobs:
             METAL_DMG="$(sudo find /System/Library/AssetsV2/com_apple_MobileAsset_MetalToolchain -path '*/AssetData/Restore/*.dmg' -print 2>/dev/null | head -n 1 || true)"
             if [ -z "$METAL_DMG" ]; then
               echo "Downloading Metal Toolchain (about 840 MB)..."
-              if ! env DEVELOPER_DIR="$DEVELOPER_PATH" "$DEVELOPER_PATH/usr/bin/xcodebuild" -downloadComponent MetalToolchain; then
-                echo "Retrying Metal Toolchain download with sudo..."
-                sudo env DEVELOPER_DIR="$DEVELOPER_PATH" "$DEVELOPER_PATH/usr/bin/xcodebuild" -downloadComponent MetalToolchain
-              fi
+              # Apple's asset catalog fetch fails intermittently ("Failed
+              # fetching catalog for assetType ..."). Retry instead of failing
+              # the whole build on the first attempt.
+              for ATTEMPT in 1 2 3 4 5; do
+                echo "Metal Toolchain download attempt $ATTEMPT..."
+                if [ "$ATTEMPT" -le 2 ]; then
+                  if env DEVELOPER_DIR="$DEVELOPER_PATH" "$DEVELOPER_PATH/usr/bin/xcodebuild" -downloadComponent MetalToolchain; then
+                    break
+                  fi
+                else
+                  echo "Retrying Metal Toolchain download with sudo..."
+                  if sudo env DEVELOPER_DIR="$DEVELOPER_PATH" "$DEVELOPER_PATH/usr/bin/xcodebuild" -downloadComponent MetalToolchain; then
+                    break
+                  fi
+                fi
+                if [ "$ATTEMPT" -lt 5 ]; then
+                  echo "Download attempt $ATTEMPT failed; waiting 30 seconds before the next one..."
+                  sleep 30
+                fi
+              done
               METAL_DMG="$(sudo find /System/Library/AssetsV2/com_apple_MobileAsset_MetalToolchain -path '*/AssetData/Restore/*.dmg' -print 2>/dev/null | head -n 1 || true)"
             fi
 
