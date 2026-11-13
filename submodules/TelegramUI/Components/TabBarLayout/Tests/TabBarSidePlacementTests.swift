@@ -43,13 +43,14 @@ final class TabBarSidePlacementTests: XCTestCase {
         XCTAssertEqual(tabBarSidePlacement(layout: self.coverPortrait, itemCount: 3), TabBarSidePlacement(edge: .right, frame: CGRect(x: 396.0, y: 480.0, width: 48.0, height: 176.0)))
     }
 
-    func test_fiveTabs_landscapeLeft_stillFits() {
-        XCTAssertEqual(tabBarSidePlacement(layout: self.coverLandscapeLeft, itemCount: 5), TabBarSidePlacement(edge: .right, frame: CGRect(x: 608.0, y: 88.0, width: 48.0, height: 288.0)))
+    func test_fiveTabs_landscapeLeft_stillFitsSameSize() {
+        // Five items shorten instead of stretching the bar, so it keeps a four-item bar's size.
+        XCTAssertEqual(tabBarSidePlacement(layout: self.coverLandscapeLeft, itemCount: 5), TabBarSidePlacement(edge: .right, frame: CGRect(x: 608.0, y: 144.0, width: 48.0, height: 232.0)))
     }
 
-    func test_sevenTabs_landscapeLeft_doesNotFit_nil() {
-        // 7 * 56 + 8 = 400 would start at 376 - 400 = -24, above the strip's top + 8.
-        XCTAssertNil(tabBarSidePlacement(layout: self.coverLandscapeLeft, itemCount: 7))
+    func test_sevenTabs_landscapeLeft_shortenedItemsSameSize() {
+        // Seven items also shorten instead of stretching the bar, so it fits exactly like four or five.
+        XCTAssertEqual(tabBarSidePlacement(layout: self.coverLandscapeLeft, itemCount: 7), TabBarSidePlacement(edge: .right, frame: CGRect(x: 608.0, y: 144.0, width: 48.0, height: 232.0)))
     }
 
     func test_noItems_nil() {

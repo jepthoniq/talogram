@@ -54,7 +54,7 @@ public func tabBarSidePlacement(layout: ContainerViewLayout, itemCount: Int) -> 
         return nil
     }
 
-    let size = CGSize(width: tabBarCompactItemThickness + tabBarInnerInset * 2.0, height: CGFloat(itemCount) * tabBarItemLength + tabBarInnerInset * 2.0)
+    let size = CGSize(width: tabBarCompactItemThickness + tabBarInnerInset * 2.0, height: tabBarVerticalBarLength(itemCount: itemCount))
     if strip.width < tabBarSideOuterMargin + size.width {
         return nil
     }

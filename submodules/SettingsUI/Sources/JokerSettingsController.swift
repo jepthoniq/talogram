@@ -222,7 +222,7 @@ private func jokerSettingsControllerEntries(presentationData: PresentationData, 
     return entries
 }
 
-public func jokerSettingsController(context: AccountContext) -> ViewController {
+public func jokerSettingsController(context: AccountContext, isTab: Bool = false) -> ViewController {
     var settingsController: ViewController! = nil
     let arguments = JokerSettingsControllerArguments(
         updateAutoSaveMedia: { value in
@@ -281,14 +281,14 @@ public func jokerSettingsController(context: AccountContext) -> ViewController {
         let updatedTheme = presentationData.theme.withModalBlocksBackground()
         presentationData = presentationData.withUpdated(theme: updatedTheme)
 
-        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text(jokerLocalized(presentationData, "إعدادات الجوكر", "Joker Settings")), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
+        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text(jokerLocalized(presentationData, "إعدادات الجوكر", "Joker Settings")), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: isTab ? nil : ItemListBackButton(title: presentationData.strings.Common_Back))
         let listState = ItemListNodeState(presentationData: ItemListPresentationData(presentationData), entries: jokerSettingsControllerEntries(presentationData: presentationData, settings: jokerSettings), style: .blocks, animateChanges: true)
 
         return (controllerState, (listState, arguments))
     }
 
     let controller = ItemListController(context: context, state: signal)
-    controller.navigationPresentation = .modal
+    controller.navigationPresentation = isTab ? .default : .modal
     settingsController = controller
 
     return controller

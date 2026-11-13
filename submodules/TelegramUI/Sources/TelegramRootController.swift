@@ -34,6 +34,7 @@ import PeerInfoStoryGridScreen
 import ShareWithPeersScreen
 import ChatEmptyNode
 import NewsScreen
+import TelegramUIPreferences
 
 private class DetailsChatPlaceholderNode: ASDisplayNode, NavigationDetailsPlaceholderNode {
     private var presentationData: PresentationData
@@ -85,6 +86,7 @@ public final class TelegramRootController: NavigationController, TelegramRootCon
     public var chatListController: ChatListController?
     public var accountSettingsController: PeerInfoScreen?
     public var newsController: NewsScreen?
+    public var jokerTabController: ViewController?
     
     private var permissionsDisposable: Disposable?
     private var presentationDataDisposable: Disposable?
@@ -240,14 +242,25 @@ public final class TelegramRootController: NavigationController, TelegramRootCon
         }
         accountSettingsController.parentController = self
         controllers.append(accountSettingsController)
+
+        // Joker Mod: a tab for the Joker settings screen, at the bottom of the bar.
+        let jokerTab = jokerSettingsController(context: self.context, isTab: true)
+        jokerTab.navigationPresentation = .default
+        jokerTab.tabBarItem.title = jokerLocalize(sample: self.presentationData.strings.Common_Back, arValue: "الجوكر", enValue: "Joker")
+        let jokerTabIcon = UIImage(bundleImageName: "Settings/Joker")
+        jokerTab.tabBarItem.image = jokerTabIcon
+        jokerTab.tabBarItem.selectedImage = jokerTabIcon
+        controllers.append(jokerTab)
                 
         let chatsIndex = controllers.firstIndex(where: { $0 === chatListController }) ?? 0
-        tabBarController.setControllers(controllers, selectedIndex: restoreSettignsController != nil ? (controllers.count - 1) : chatsIndex)
+        let settingsIndex = controllers.firstIndex(where: { $0 === accountSettingsController }) ?? chatsIndex
+        tabBarController.setControllers(controllers, selectedIndex: restoreSettignsController != nil ? settingsIndex : chatsIndex)
         
         self.callListController = callListController
         self.newsController = newsController
         self.chatListController = chatListController
         self.accountSettingsController = accountSettingsController
+        self.jokerTabController = jokerTab
         self.rootTabController = tabBarController
         self.pushViewController(tabBarController, animated: false)
     }
@@ -265,6 +278,9 @@ public final class TelegramRootController: NavigationController, TelegramRootCon
         }
         controllers.append(self.chatListController!)
         controllers.append(self.accountSettingsController!)
+        if let jokerTab = self.jokerTabController {
+            controllers.append(jokerTab)
+        }
 
         // A removed selected tab would otherwise fall back to index 0: select Chats instead.
         var selectedIndex: Int?

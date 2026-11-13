@@ -97,6 +97,19 @@ final class TabBarItemsLayoutTests: XCTestCase {
         XCTAssertEqual(result.size, CGSize(width: 48.0, height: 232.0))
     }
 
+    func test_verticalCompact_fiveItems_sameSizeAsFour() {
+        // 224 / 5 = 44.8 per item; the bar keeps a four-item bar's 48 x 232 size.
+        let result = tabBarItemsLayout(axis: .vertical, isCompact: true, unboundItemWidths: [0.0, 0.0, 0.0, 0.0, 0.0], availableLength: 1000.0)
+        XCTAssertEqual(result.size, CGSize(width: 48.0, height: 232.0))
+        XCTAssertEqual(result.itemFrames, [
+            CGRect(x: 4.0, y: 4.0, width: 40.0, height: 44.8),
+            CGRect(x: 4.0, y: 48.8, width: 40.0, height: 44.8),
+            CGRect(x: 4.0, y: 93.6, width: 40.0, height: 44.8),
+            CGRect(x: 4.0, y: 138.4, width: 40.0, height: 44.8),
+            CGRect(x: 4.0, y: 183.2, width: 40.0, height: 44.8)
+        ])
+    }
+
     // The lens selection rect.
 
     func test_lens_horizontalSelectedItem_growsByTheInsetAlongTheAxis() {

@@ -14,6 +14,24 @@ public let tabBarItemLength: CGFloat = 56.0
 public let tabBarInnerInset: CGFloat = 4.0
 /// A compact (icon-only) item's size across the bar.
 public let tabBarCompactItemThickness: CGFloat = 40.0
+/// The vertical compact bar never gets longer than a four-item bar: extra items shorten instead of
+/// stretching it (the side strip it sits in is tight), so its total size stays the same either way.
+public let tabBarVerticalMaxLength: CGFloat = 4.0 * tabBarItemLength + 2.0 * tabBarInnerInset
+/// One vertical item's length in a bar with `itemCount` items: the regular length up to four items,
+/// then sharing the four-item length so the bar keeps the same total size.
+public func tabBarVerticalItemLength(itemCount: Int) -> CGFloat {
+    if itemCount <= 4 {
+        return tabBarItemLength
+    }
+    return (tabBarVerticalMaxLength - tabBarInnerInset * 2.0) / CGFloat(itemCount)
+}
+/// A vertical compact bar's total length for `itemCount` items.
+public func tabBarVerticalBarLength(itemCount: Int) -> CGFloat {
+    if itemCount <= 0 {
+        return 0.0
+    }
+    return tabBarInnerInset * 2.0 + CGFloat(itemCount) * tabBarVerticalItemLength(itemCount: itemCount)
+}
 /// A horizontal compact bar that would hug its items within this much of its available length takes the
 /// whole length instead: a small leftover gap on each side reads as a mistake rather than a design.
 private let tabBarCompactFillThreshold: CGFloat = 60.0
@@ -55,6 +73,8 @@ public func tabBarItemsLayout(axis: TabBarAxis, isCompact: Bool, unboundItemWidt
     } else if axis == .horizontal && isCompact && count != 0 && availableLength - (CGFloat(count) * tabBarItemLength + tabBarInnerInset * 2.0) < tabBarCompactFillThreshold {
         let equalLength = floorToScreenPixels((availableLength - tabBarInnerInset * 2.0) / CGFloat(count))
         lengths = Array(repeating: equalLength, count: count)
+    } else if axis == .vertical {
+        lengths = Array(repeating: tabBarVerticalItemLength(itemCount: count), count: count)
     } else {
         lengths = Array(repeating: tabBarItemLength, count: count)
     }
