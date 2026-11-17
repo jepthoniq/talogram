@@ -107,7 +107,7 @@ For each screen of the task's group:
   `CommandLine.arguments.contains("--force-voiceover-layout")` inside `#if DEBUG` and `false` otherwise.
   Every former `UIAccessibility.isVoiceOverRunning` read in Display uses it. The ObjC site uses the same argument
   under `#ifdef DEBUG` via `NSProcessInfo.processInfo.arguments`.
-- Launch: `xcrun simctl launch <udid> ph.telegra.Telegraph --force-voiceover-layout`.
+- Launch: `xcrun simctl launch <udid> com.joker.talogram --force-voiceover-layout`.
 
 - [ ] **Step 1:** Before the change: capture `contacts` with a plain launch (baseline).
 - [ ] **Step 2:** Implement; confirm `-DDEBUG` reaches both Swift (`-c dbg`) and ObjC targets in `debug_sim_arm64`

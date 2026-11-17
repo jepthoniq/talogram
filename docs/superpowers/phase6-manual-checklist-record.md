@@ -13,7 +13,7 @@ cannot see any of it.
 
 ```sh
 K1=CA0A2186-0F4A-425B-B3B1-9B61E5FF01A9
-BUNDLE=ph.telegra.Telegraph
+BUNDLE=com.joker.talogram
 STAGE=$(mktemp -d)
 unzip -q -o bazel-bin/Telegram/Telegram.ipa -d "$STAGE"
 SRC="$STAGE/Payload/Telegram.app"

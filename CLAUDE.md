@@ -93,7 +93,7 @@ own suite (`swift test` / `Scripts/iostest.sh`). Most modules still have no test
 ```sh
 K3=4483DD69-685A-4FE1-89BE-65F992C271F2   # iPhone 18 Pro K3 (use the dedicated K-sims, not the shared default)
 # K1=03A7DA9C-1832-49B8-9858-2F54F2FB5A04, K2=E643A78E-DB62-4DA4-9F54-BD0836F434AF (both iPhone 18 Pro).
-BUNDLE=ph.telegra.Telegraph
+BUNDLE=com.joker.talogram
 # Fresh build output: go through `bazel-bin`, which bazel repoints at the LAST build's configuration.
 # Never `find` under `bazel-out`: it keeps every configuration ever built, so `… | head -1` can return a
 # stale *device* archive, which copies fine and then refuses to launch ("request was denied by service

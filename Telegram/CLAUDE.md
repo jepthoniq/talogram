@@ -72,7 +72,7 @@ action input, so a shared cache would serve wrongly signed bundles.
 `new_applebundleinfo`; `watch_application` requires BOTH `AppleBundleInfo` (with a non-None `infoplist` File) AND
 `WatchosApplicationBundleInfo`; the embedded watch app's `CFBundleShortVersionString`/`CFBundleVersion` must exactly
 equal the host's (from `versions.json['app']` + `--define=buildNumber`); the host does NOT re-sign the embedded watch
-app, so the worker must sign it; the watch bundle id `ph.telegra.Telegraph.watchkitapp` must track the host
+app, so the worker must sign it; the watch bundle id `com.joker.talogram.watchkitapp` must track the host
 `telegram_bundle_id`.
 
 **Status:** verified only with **development** signing on `debug_arm64`. Open before App Store shipping: secure timestamp

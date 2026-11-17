@@ -70,7 +70,7 @@ from hls.js (D1–D14), the failure policy, the logs and the measurements are in
   (`fetchedResourceRangeUntilOnDisk`). Every HLS fetch retries with backoff, and a failing level is avoided for a
   cool-down, never for good. Only content (a rejected playlist) is final.
 - **A slow network on the simulator:** launch a debug build with `-debugNetworkProfile <wifi|lte|poor-lte|3g|step-down>`
-  (or `<bitsPerSecond>,<roundTripMs>`; `xcrun simctl launch <udid> ph.telegra.Telegraph -debugNetworkProfile 3g`).
+  (or `<bitsPerSecond>,<roundTripMs>`; `xcrun simctl launch <udid> com.joker.talogram -debugNetworkProfile 3g`).
   `DebugNetworkShaper` holds every media download's response in `MultiplexedRequestManager` until one link per process
   with that round trip and bandwidth would have delivered it; a held response keeps its worker slot. Main-session API
   calls are not shaped. The playback lab in `Tests/` uses the same profiles, so lab and simulator numbers compare.

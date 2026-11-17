@@ -6,7 +6,7 @@ Scope: `docs/superpowers/specs/2026-10-27-voiceover-design.md`. Capture with `to
 
 - **Build** debug (`--configuration=debug_sim_arm64`) and install by whole-`.app` copy (root `CLAUDE.md`, "Updating the
   running simulator after a rebuild").
-- **Launch with `--force-voiceover-layout`**: `xcrun simctl launch <udid> ph.telegra.Telegraph --force-voiceover-layout`.
+- **Launch with `--force-voiceover-layout`**: `xcrun simctl launch <udid> com.joker.talogram --force-voiceover-layout`.
   The simulator never runs VoiceOver, and some screens lay out differently under it (contacts sorted by name, picker
   taps select, story viewer controls). The flag makes `isVoiceOverRunningForLayout` (`Display/Source/Accessibility.swift`)
   return true. It exists in DEBUG builds only.

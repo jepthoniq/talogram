@@ -43,7 +43,7 @@ the media time, the clock touch timestamps share:
   its two ends, which is what tells a jump from a scroll.
 
 From a device: `xcrun devicectl device copy from --device <id> --domain-type appDataContainer --domain-identifier
-ph.telegra.Telegraph --source Documents/flight-trace.txt --destination <file>`.
+com.joker.talogram --source Documents/flight-trace.txt --destination <file>`.
 
 ## Scope
 

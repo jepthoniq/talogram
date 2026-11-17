@@ -7,7 +7,7 @@
 	<key>com.apple.developer.sirikit</key>
 	<true/>
 	<key>com.apple.security.application-groups</key>
-	<string>group.ph.telegra.Telegraph</string>
+	<string>group.com.joker.talogram</string>
 	<key>com.apple.developer.icloud-container-environment</key>
 	<string>Development</string>
 </dict>
